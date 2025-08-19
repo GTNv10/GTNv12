@@ -1300,105 +1300,134 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${filename}.pdf`;
     }
 
-    async function downloadPDF() {
-        if (!pendingPDFGeneration) return;
-        const { template, uploadedImages } = pendingPDFGeneration;
+    // REEMPLAZA TU FUNCIÓN "downloadPDF" CON ESTA VERSIÓN COMPLETA Y CORREGIDA
 
-        const initialFilename = generatePdfFilename();
-        const finalFilename = await showPromptModal('Confirmar nombre del archivo PDF', (name) => {}, initialFilename);
+async function downloadPDF() {
+    if (!pendingPDFGeneration) return;
+    const { template, uploadedImages } = pendingPDFGeneration;
 
-        if (!finalFilename) return;
+    const initialFilename = generatePdfFilename();
+    const finalFilename = await showPromptModal('Confirmar nombre del archivo PDF', (name) => {}, initialFilename);
 
-        try {
-            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-            const margin = 20;
-            const usableWidth = doc.internal.pageSize.getWidth() - (2 * margin);
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const fontSize = 12;
-            const lineHeight = (fontSize * 1.3) * 0.352778;
-            let cursorY = margin;
+    if (!finalFilename) return;
 
-            const addPageIfNeeded = (requiredHeight) => {
-                if (cursorY + requiredHeight > pageHeight - margin) {
-                    doc.addPage();
-                    cursorY = margin;
-                    return true;
+    try {
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const margin = 20;
+        const usableWidth = doc.internal.pageSize.getWidth() - (2 * margin);
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const fontSize = 12;
+        const lineHeight = (fontSize * 1.3) * 0.352778;
+        let cursorY = margin;
+
+        const addPageIfNeeded = (requiredHeight) => {
+            if (cursorY + requiredHeight > pageHeight - margin) {
+                doc.addPage();
+                cursorY = margin;
+                return true;
+            }
+            return false;
+        };
+
+        const writeTextWithMarkdown = (text, x, y) => {
+            let currentX = x;
+            const parts = text.split(/(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*)/g).filter(p => p);
+
+            parts.forEach(part => {
+                let style = 'normal';
+                let textToPrint = part;
+
+                if (part.startsWith('***') && part.endsWith('***')) {
+                    style = 'bolditalic';
+                    textToPrint = part.slice(3, -3);
+                } else if (part.startsWith('**') && part.endsWith('**')) {
+                    style = 'bold';
+                    textToPrint = part.slice(2, -2);
+                } else if (part.startsWith('*') && part.endsWith('*')) {
+                    style = 'italic';
+                    textToPrint = part.slice(1, -1);
                 }
-                return false;
-            };
-
-            doc.setFont(template.fontFamily || 'Helvetica', 'normal');
-            doc.setFontSize(fontSize);
-
-            const contentWithPlaceholders = pendingPDFGeneration.template.content;
-            const finalRenderableContent = contentWithPlaceholders.replace(/\{\{(?!IMAGEN:)(.*?)\}\}/g, (_, key) => {
-                 const manualValues = {};
-                 const manualVarsForm = document.getElementById('manual-vars-form');
-                 if (manualVarsForm.elements.length > 0) {
-                     const formData = new FormData(manualVarsForm);
-                     for (let [k, value] of formData.entries()) manualValues[k] = value;
-                 }
-                 key = key.trim();
-                 if (manualValues.hasOwnProperty(key)) return manualValues[key];
-                 if (pendingPDFGeneration.rowData.hasOwnProperty(key)) {
-                     const value = String(pendingPDFGeneration.rowData[key] ?? '');
-                     return value.trim() ? value : '';
-                 }
-                 return ``;
+                
+                doc.setFont(template.fontFamily || 'Helvetica', style);
+                doc.text(textToPrint, currentX, y);
+                currentX += doc.getStringUnitWidth(textToPrint) * fontSize / doc.internal.scaleFactor;
             });
             
-            const parts = finalRenderableContent.split(/(\{\{IMAGEN:.*?\}\})/g);
+            doc.setFont(template.fontFamily || 'Helvetica', 'normal');
+        };
 
-            for (const part of parts) {
-                if (part.startsWith('{{IMAGEN:')) {
-                    const imageName = part.slice(9, -2).trim();
-                    const base64Image = uploadedImages[imageName];
-                    if (base64Image) {
-                        const imgProps = doc.getImageProperties(base64Image);
-                        const aspectRatio = imgProps.width / imgProps.height;
-                        let imgWidth = usableWidth;
-                        let imgHeight = imgWidth / aspectRatio;
-                        
-                        const maxImgHeight = pageHeight / 2;
-                        if (imgHeight > maxImgHeight) {
-                            imgHeight = maxImgHeight;
-                            imgWidth = imgHeight * aspectRatio;
-                        }
+        doc.setFont(template.fontFamily || 'Helvetica', 'normal');
+        doc.setFontSize(fontSize);
 
-                        addPageIfNeeded(imgHeight + lineHeight);
-                        doc.addImage(base64Image, 'JPEG', margin, cursorY, imgWidth, imgHeight);
-                        cursorY += imgHeight + lineHeight;
+        const contentWithPlaceholders = pendingPDFGeneration.template.content;
+        const finalRenderableContent = contentWithPlaceholders.replace(/\{\{(?!IMAGEN:)(.*?)\}\}/g, (_, key) => {
+             const manualValues = {};
+             const manualVarsForm = document.getElementById('manual-vars-form');
+             if (manualVarsForm.elements.length > 0) {
+                 const formData = new FormData(manualVarsForm);
+                 for (let [k, value] of formData.entries()) manualValues[k] = value;
+             }
+             key = key.trim();
+             if (manualValues.hasOwnProperty(key)) return manualValues[key];
+             if (pendingPDFGeneration.rowData.hasOwnProperty(key)) {
+                 const value = String(pendingPDFGeneration.rowData[key] ?? '');
+                 return value.trim() ? value : '';
+             }
+             return ``;
+        });
+        
+        const parts = finalRenderableContent.split(/(\{\{IMAGEN:.*?\}\})/g);
+
+        for (const part of parts) {
+            if (part.startsWith('{{IMAGEN:')) {
+                const imageName = part.slice(9, -2).trim();
+                const base64Image = uploadedImages[imageName];
+                if (base64Image) {
+                    const imgProps = doc.getImageProperties(base64Image);
+                    const aspectRatio = imgProps.width / imgProps.height;
+                    let imgWidth = usableWidth;
+                    let imgHeight = imgWidth / aspectRatio;
+                    
+                    const maxImgHeight = pageHeight / 2;
+                    if (imgHeight > maxImgHeight) {
+                        imgHeight = maxImgHeight;
+                        imgWidth = imgHeight * aspectRatio;
                     }
-                } else {
-                    const paragraphs = part.split('\n');
-                    paragraphs.forEach((paragraph, pIndex) => {
-                        if (paragraph.trim() === '' && pIndex < paragraphs.length -1) {
-                             addPageIfNeeded(lineHeight);
-                             cursorY += lineHeight;
-                             return;
-                        }
-                        
-                        const lines = doc.splitTextToSize(paragraph, usableWidth);
-                        lines.forEach(line => {
-                             addPageIfNeeded(lineHeight);
-                             doc.text(line, margin, cursorY);
-                             cursorY += lineHeight;
-                        });
-                    });
-                }
-            }
-            
-            doc.save(finalFilename);
-            showToast('PDF generado correctamente.', 'success');
 
-        } catch (e) {
-            console.error("Error al generar PDF:", e);
-            showToast('Hubo un error inesperado al generar el PDF.', 'error');
-        } finally {
-            elements.previewModal.classList.remove('active');
-            pendingPDFGeneration = null;
+                    addPageIfNeeded(imgHeight + lineHeight);
+                    doc.addImage(base64Image, 'JPEG', margin, cursorY, imgWidth, imgHeight);
+                    cursorY += imgHeight + lineHeight;
+                }
+            } else {
+                const paragraphs = part.split('\n');
+                paragraphs.forEach((paragraph, pIndex) => {
+                    if (paragraph.trim() === '' && pIndex < paragraphs.length -1) {
+                         addPageIfNeeded(lineHeight);
+                         cursorY += lineHeight;
+                         return;
+                    }
+                    
+                    const lines = doc.splitTextToSize(paragraph, usableWidth);
+                    lines.forEach(line => {
+                         addPageIfNeeded(lineHeight);
+                         writeTextWithMarkdown(line, margin, cursorY);
+                         cursorY += lineHeight;
+                    });
+                });
+            }
         }
+        
+        doc.save(finalFilename);
+        showToast('PDF generado correctamente.', 'success');
+
+    } catch (e) {
+        console.error("Error al generar PDF:", e);
+        showToast('Hubo un error inesperado al generar el PDF.', 'error');
+    } finally {
+        elements.previewModal.classList.remove('active');
+        pendingPDFGeneration = null;
     }
+}
 
     
     function openColumnsModal() {
@@ -2543,5 +2572,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     init();
-
 });
