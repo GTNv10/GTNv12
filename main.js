@@ -1185,7 +1185,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Haz clic para seleccionar o arrastra una imagen aquí</p>
                     <img id="preview-${fieldId}" class="hidden max-h-24 mx-auto mt-2 rounded"/>
                 </label>
-                <input type="file" id="${fieldId}" name="${fieldName}" accept="image/png, image/jpeg" class="hidden" required>
+                <input type="file" id="${fieldId}" name="${fieldName}" accept="image/png, image/jpeg" class="hidden">
             `;
             
             const input = container.querySelector('input[type="file"]');
@@ -2543,4 +2543,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     init();
+
 });
