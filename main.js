@@ -337,10 +337,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (!isNaN(parseFloat(valA)) && !isNaN(parseFloat(valB))) {
                     valA = parseFloat(valA);
                     valB = parseFloat(valB);
-                } else if (typeof valA === 'string') {
+                } else if (typeof valA === 'string' && typeof valB === 'string') {
                     valA = valA.toLowerCase();
                     valB = valB.toLowerCase();
-                }
+        }
 
                 if (valA < valB) return -1 * sortOrder;
                 if (valA > valB) return 1 * sortOrder;
