@@ -1017,6 +1017,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function moveManualField(fieldName, direction) {
+        const placeholdersContainer = document.getElementById('placeholders-container');
+        let manualFields = Array.from(placeholdersContainer.querySelectorAll('.manual-field-container')).map(c => c.dataset.placeholder);
+        const imageFields = Array.from(placeholdersContainer.querySelectorAll('.image-field-container')).map(c => c.dataset.placeholder);
+
+        const index = manualFields.indexOf(fieldName);
+        const newIndex = index + direction;
+
+        if (newIndex < 0 || newIndex >= manualFields.length) {
+            return;
+        }
+
+        [manualFields[index], manualFields[newIndex]] = [manualFields[newIndex], manualFields[index]];
+
+        updatePlaceholders(manualFields, imageFields);
+    }
 
     function saveTemplate() {
         const templateIdInput = document.getElementById('template-id');
@@ -1069,11 +1085,35 @@ document.addEventListener('DOMContentLoaded', () => {
             placeholdersContainer.appendChild(btn);
         });
         
-        (manualFields || []).forEach((field) => {
+        (manualFields || []).forEach((field, index) => {
             const container = document.createElement('div');
-            container.className = "manual-field-container bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1 hover:bg-purple-200 dark:hover:bg-purple-700";
+            container.className = "manual-field-container bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1.5 hover:bg-purple-200 dark:hover:bg-purple-700";
             container.dataset.placeholder = field;
-    
+            
+            const moveContainer = document.createElement('div');
+            moveContainer.className = "flex flex-col";
+
+            const upBtn = document.createElement('button');
+            upBtn.innerHTML = '▲';
+            upBtn.type = 'button';
+            upBtn.className = 'move-manual-field-btn';
+            upBtn.title = 'Mover arriba';
+            upBtn.dataset.field = field;
+            upBtn.dataset.direction = '-1';
+            if (index === 0) upBtn.disabled = true;
+
+            const downBtn = document.createElement('button');
+            downBtn.innerHTML = '▼';
+            downBtn.type = 'button';
+            downBtn.className = 'move-manual-field-btn';
+            downBtn.title = 'Mover abajo';
+            downBtn.dataset.field = field;
+            downBtn.dataset.direction = '1';
+            if (index === manualFields.length - 1) downBtn.disabled = true;
+
+            moveContainer.appendChild(upBtn);
+            moveContainer.appendChild(downBtn);
+
             const textSpan = document.createElement('span');
             textSpan.textContent = field;
             textSpan.className = "px-1 cursor-pointer flex-grow text-center";
@@ -1089,6 +1129,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updatePlaceholders(currentManuals, imageFields);
             };
             
+            container.appendChild(moveContainer);
             container.appendChild(textSpan);
             container.appendChild(removeBtn);
             placeholdersContainer.appendChild(container);
@@ -2404,6 +2445,14 @@ async function downloadPDF() {
         elements.templateModal.addEventListener('click', (e) => {
             if(e.target.id === 'save-template-btn') saveTemplate();
             if(e.target.id === 'cancel-template-btn') elements.templateModal.classList.remove('active');
+            
+            const moveBtn = e.target.closest('.move-manual-field-btn');
+            if (moveBtn && !moveBtn.disabled) {
+                const fieldName = moveBtn.dataset.field;
+                const direction = parseInt(moveBtn.dataset.direction, 10);
+                moveManualField(fieldName, direction);
+            }
+
             if(e.target.id === 'add-manual-field-btn') {
                 const manualFieldInput = document.getElementById('manual-field-input');
                 const fieldName = manualFieldInput.value.trim();
