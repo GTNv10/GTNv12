@@ -1343,7 +1343,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // REEMPLAZA TU FUNCIÓN "downloadPDF" CON ESTA VERSIÓN COMPLETA Y CORREGIDA
 
-async function downloadPDF() {
+ async function downloadPDF() {
     if (!pendingPDFGeneration) return;
     const { template, uploadedImages } = pendingPDFGeneration;
 
@@ -1358,46 +1358,26 @@ async function downloadPDF() {
         const usableWidth = doc.internal.pageSize.getWidth() - (2 * margin);
         const pageHeight = doc.internal.pageSize.getHeight();
         const fontSize = 12;
-        const lineHeight = (fontSize * 1.3) * 0.352778;
+        const lineHeight = (fontSize * 1.3) * 0.352778; // Aprox. 4.5mm for 12pt font
         let cursorY = margin;
+        let currentX = margin;
 
         const addPageIfNeeded = (requiredHeight) => {
             if (cursorY + requiredHeight > pageHeight - margin) {
                 doc.addPage();
                 cursorY = margin;
+                currentX = margin; // Reset X position on new page
                 return true;
             }
             return false;
         };
 
-        const writeTextWithMarkdown = (text, x, y) => {
-            let currentX = x;
-            const parts = text.split(/(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*)/g).filter(p => p);
-
-            parts.forEach(part => {
-                let style = 'normal';
-                let textToPrint = part;
-
-                if (part.startsWith('***') && part.endsWith('***')) {
-                    style = 'bolditalic';
-                    textToPrint = part.slice(3, -3);
-                } else if (part.startsWith('**') && part.endsWith('**')) {
-                    style = 'bold';
-                    textToPrint = part.slice(2, -2);
-                } else if (part.startsWith('*') && part.endsWith('*')) {
-                    style = 'italic';
-                    textToPrint = part.slice(1, -1);
-                }
-                
-                doc.setFont(template.fontFamily || 'Helvetica', style);
-                doc.text(textToPrint, currentX, y);
-                currentX += doc.getStringUnitWidth(textToPrint) * fontSize / doc.internal.scaleFactor;
-            });
-            
-            doc.setFont(template.fontFamily || 'Helvetica', 'normal');
+        const writeLine = () => {
+             cursorY += lineHeight;
+             currentX = margin;
+             addPageIfNeeded(lineHeight);
         };
-
-        doc.setFont(template.fontFamily || 'Helvetica', 'normal');
+        
         doc.setFontSize(fontSize);
 
         const contentWithPlaceholders = pendingPDFGeneration.template.content;
@@ -1417,13 +1397,16 @@ async function downloadPDF() {
              return ``;
         });
         
-        const parts = finalRenderableContent.split(/(\{\{IMAGEN:.*?\}\})/g);
+        const contentParts = finalRenderableContent.split(/(\{\{IMAGEN:.*?\}\})/g);
 
-        for (const part of parts) {
-            if (part.startsWith('{{IMAGEN:')) {
-                const imageName = part.slice(9, -2).trim();
+        for (const contentPart of contentParts) {
+            if (contentPart.startsWith('{{IMAGEN:')) {
+                // Handle images
+                const imageName = contentPart.slice(9, -2).trim();
                 const base64Image = uploadedImages[imageName];
                 if (base64Image) {
+                    if (currentX > margin) writeLine(); // Move to a new line if there was text before the image
+                    
                     const imgProps = doc.getImageProperties(base64Image);
                     const aspectRatio = imgProps.width / imgProps.height;
                     let imgWidth = usableWidth;
@@ -1437,22 +1420,52 @@ async function downloadPDF() {
 
                     addPageIfNeeded(imgHeight + lineHeight);
                     doc.addImage(base64Image, 'JPEG', margin, cursorY, imgWidth, imgHeight);
-                    cursorY += imgHeight + lineHeight;
+                    cursorY += imgHeight;
+                    if (currentX > margin) writeLine();
                 }
             } else {
-                const paragraphs = part.split('\n');
-                paragraphs.forEach((paragraph, pIndex) => {
-                    if (paragraph.trim() === '' && pIndex < paragraphs.length -1) {
-                         addPageIfNeeded(lineHeight);
-                         cursorY += lineHeight;
-                         return;
+                 // Handle text paragraphs
+                const paragraphs = contentPart.split('\n');
+                paragraphs.forEach(paragraph => {
+                    if (currentX > margin) writeLine(); // Start each new paragraph on a new line.
+
+                    if (paragraph.trim() === '') {
+                        cursorY += lineHeight; // Add space for empty paragraphs
+                        return;
                     }
+
+                    // Tokenize the paragraph into styled and unstyled parts
+                    const tokens = paragraph.match(/\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|.+?/g) || [];
                     
-                    const lines = doc.splitTextToSize(paragraph, usableWidth);
-                    lines.forEach(line => {
-                         addPageIfNeeded(lineHeight);
-                         writeTextWithMarkdown(line, margin, cursorY);
-                         cursorY += lineHeight;
+                    tokens.forEach(token => {
+                        let style = 'normal';
+                        let text = token;
+
+                        if (token.startsWith('***') && token.endsWith('***')) {
+                            style = 'bolditalic';
+                            text = token.slice(3, -3);
+                        } else if (token.startsWith('**') && token.endsWith('**')) {
+                            style = 'bold';
+                            text = token.slice(2, -2);
+                        } else if (token.startsWith('*') && token.endsWith('*')) {
+                            style = 'italic';
+                            text = token.slice(1, -1);
+                        }
+                        
+                        doc.setFont(template.fontFamily || 'Helvetica', style);
+                        
+                        // Process word by word to handle line wrapping correctly
+                        const words = text.split(/(\s+)/);
+                        words.forEach(word => {
+                            if (!word) return;
+                            const wordWidth = doc.getStringUnitWidth(word) * fontSize / doc.internal.scaleFactor;
+
+                            if (currentX + wordWidth > margin + usableWidth) {
+                                writeLine();
+                            }
+                            doc.text(word, currentX, cursorY);
+                            currentX += wordWidth;
+                        });
                     });
                 });
             }
