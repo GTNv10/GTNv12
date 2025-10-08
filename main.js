@@ -1341,9 +1341,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${filename}.pdf`;
     }
 
-    // REEMPLAZA TU FUNCIÓN "downloadPDF" CON ESTA VERSIÓN COMPLETA Y CORREGIDA
 
- async function downloadPDF() {
+// REEMPLAZA TU FUNCIÓN "downloadPDF" CON ESTA VERSIÓN
+
+async function downloadPDF() {
     if (!pendingPDFGeneration) return;
     const { template, uploadedImages } = pendingPDFGeneration;
 
@@ -1358,116 +1359,98 @@ document.addEventListener('DOMContentLoaded', () => {
         const usableWidth = doc.internal.pageSize.getWidth() - (2 * margin);
         const pageHeight = doc.internal.pageSize.getHeight();
         const fontSize = 12;
-        const lineHeight = (fontSize * 1.3) * 0.352778; // Aprox. 4.5mm for 12pt font
+        const lineHeight = (fontSize * 1.3) * 0.352778; // Aprox. 4.5mm
         let cursorY = margin;
-        let currentX = margin;
 
         const addPageIfNeeded = (requiredHeight) => {
             if (cursorY + requiredHeight > pageHeight - margin) {
                 doc.addPage();
                 cursorY = margin;
-                currentX = margin; // Reset X position on new page
+                // Re-apply font settings on new page
+                doc.setFontSize(fontSize);
+                doc.setFont(template.fontFamily || 'Helvetica', 'normal');
                 return true;
             }
             return false;
         };
-
-        const writeLine = () => {
-             cursorY += lineHeight;
-             currentX = margin;
-             addPageIfNeeded(lineHeight);
-        };
         
         doc.setFontSize(fontSize);
 
-        const contentWithPlaceholders = pendingPDFGeneration.template.content;
-        const finalRenderableContent = contentWithPlaceholders.replace(/\{\{(?!IMAGEN:)(.*?)\}\}/g, (_, key) => {
-             const manualValues = {};
-             const manualVarsForm = document.getElementById('manual-vars-form');
-             if (manualVarsForm.elements.length > 0) {
-                 const formData = new FormData(manualVarsForm);
-                 for (let [k, value] of formData.entries()) manualValues[k] = value;
-             }
-             key = key.trim();
-             if (manualValues.hasOwnProperty(key)) return manualValues[key];
-             if (pendingPDFGeneration.rowData.hasOwnProperty(key)) {
-                 const value = String(pendingPDFGeneration.rowData[key] ?? '');
-                 return value.trim() ? value : '';
-             }
-             return ``;
-        });
-        
+        const finalRenderableContent = pendingPDFGeneration.finalContent || '';
         const contentParts = finalRenderableContent.split(/(\{\{IMAGEN:.*?\}\})/g);
 
         for (const contentPart of contentParts) {
             if (contentPart.startsWith('{{IMAGEN:')) {
-                // Handle images
                 const imageName = contentPart.slice(9, -2).trim();
                 const base64Image = uploadedImages[imageName];
                 if (base64Image) {
-                    if (currentX > margin) writeLine(); // Move to a new line if there was text before the image
-                    
+                    cursorY += lineHeight / 2; // Add some space before the image
+                    addPageIfNeeded(20); 
                     const imgProps = doc.getImageProperties(base64Image);
                     const aspectRatio = imgProps.width / imgProps.height;
                     let imgWidth = usableWidth;
                     let imgHeight = imgWidth / aspectRatio;
-                    
-                    const maxImgHeight = pageHeight / 2;
+                    const maxImgHeight = pageHeight / 2.5;
                     if (imgHeight > maxImgHeight) {
                         imgHeight = maxImgHeight;
                         imgWidth = imgHeight * aspectRatio;
                     }
-
                     addPageIfNeeded(imgHeight + lineHeight);
                     doc.addImage(base64Image, 'JPEG', margin, cursorY, imgWidth, imgHeight);
-                    cursorY += imgHeight;
-                    if (currentX > margin) writeLine();
+                    cursorY += imgHeight + (lineHeight / 2);
                 }
             } else {
-                 // Handle text paragraphs
+                // --- LÓGICA DE TEXTO CORREGIDA Y ROBUSTA ---
                 const paragraphs = contentPart.split('\n');
-                paragraphs.forEach(paragraph => {
-                    if (currentX > margin) writeLine(); // Start each new paragraph on a new line.
-
+                
+                for (const paragraph of paragraphs) {
                     if (paragraph.trim() === '') {
-                        cursorY += lineHeight; // Add space for empty paragraphs
-                        return;
+                        addPageIfNeeded(lineHeight);
+                        cursorY += lineHeight;
+                        continue;
                     }
 
-                    // Tokenize the paragraph into styled and unstyled parts
-                    const tokens = paragraph.match(/\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|.+?/g) || [];
-                    
-                    tokens.forEach(token => {
+                    let cursorX = margin;
+                    // Tokenize into styled chunks or words with trailing space
+                    const tokens = paragraph.match(/\*\*\*.*?\s?\*\*\*|\*\*.*?\s?\*\*|\*.*?\s?\*|\S+\s*/g) || [];
+
+                    addPageIfNeeded(lineHeight);
+
+                    for (const token of tokens) {
                         let style = 'normal';
                         let text = token;
-
-                        if (token.startsWith('***') && token.endsWith('***')) {
-                            style = 'bolditalic';
-                            text = token.slice(3, -3);
-                        } else if (token.startsWith('**') && token.endsWith('**')) {
-                            style = 'bold';
-                            text = token.slice(2, -2);
-                        } else if (token.startsWith('*') && token.endsWith('*')) {
-                            style = 'italic';
-                            text = token.slice(1, -1);
-                        }
+                        let hasTrailingSpace = text.endsWith(' ');
                         
+                        const stripMarkdown = (str, marker) => {
+                           let coreText = str.substring(marker.length, str.length - marker.length).trim();
+                           return hasTrailingSpace ? coreText + ' ' : coreText;
+                        };
+
+                        if (token.startsWith('***') && token.endsWith('***')) { style = 'bolditalic'; text = stripMarkdown(token, '***');} 
+                        else if (token.startsWith('**') && token.endsWith('**')) { style = 'bold'; text = stripMarkdown(token, '**');} 
+                        else if (token.startsWith('*') && token.endsWith('*')) { style = 'italic'; text = stripMarkdown(token, '*');}
+                        
+                        if (text.trim() === '') continue;
+
                         doc.setFont(template.fontFamily || 'Helvetica', style);
-                        
-                        // Process word by word to handle line wrapping correctly
-                        const words = text.split(/(\s+)/);
-                        words.forEach(word => {
-                            if (!word) return;
-                            const wordWidth = doc.getStringUnitWidth(word) * fontSize / doc.internal.scaleFactor;
+                        const wordWidth = doc.getTextWidth(text);
 
-                            if (currentX + wordWidth > margin + usableWidth) {
-                                writeLine();
-                            }
-                            doc.text(word, currentX, cursorY);
-                            currentX += wordWidth;
-                        });
-                    });
-                });
+                        if (cursorX > margin && cursorX + wordWidth > margin + usableWidth) {
+                            // Word doesn't fit, wrap to new line
+                            cursorX = margin;
+                            cursorY += lineHeight;
+                            addPageIfNeeded(lineHeight);
+                        }
+
+                        doc.text(text, cursorX, cursorY);
+                        cursorX += wordWidth;
+                    }
+
+                    // After the paragraph is rendered, move cursor to the next line
+                    if (tokens.length > 0) {
+                        cursorY += lineHeight;
+                    }
+                }
             }
         }
         
