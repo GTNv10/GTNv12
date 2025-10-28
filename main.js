@@ -1348,7 +1348,8 @@ async function downloadPDF() {
     const { template, uploadedImages } = pendingPDFGeneration;
 
     const initialFilename = generatePdfFilename();
-    const finalFilename = await showPromptModal('Confirmar nombre del archivo PDF', (name) => {}, initialFilename);
+    // don't pass an unused callback parameter to avoid "declared but never read"
+    const finalFilename = await showPromptModal('Confirmar nombre del archivo PDF', null, initialFilename);
 
     if (!finalFilename) return;
 
@@ -1358,6 +1359,7 @@ async function downloadPDF() {
         const usableWidth = doc.internal.pageSize.getWidth() - (2 * margin);
         const pageHeight = doc.internal.pageSize.getHeight();
         const fontSize = 12;
+        // lineHeight in mm (approx conversion)
         const lineHeight = (fontSize * 1.3) * 0.352778;
         let cursorY = margin;
 
@@ -1370,30 +1372,76 @@ async function downloadPDF() {
             return false;
         };
 
-        const writeTextWithMarkdown = (text, x, y) => {
+        // helper to set font style name supported by jsPDF
+        const fontStyleFor = (isBold, isItalic) => {
+            if (isBold && isItalic) return 'bolditalic';
+            if (isBold) return 'bold';
+            if (isItalic) return 'italic';
+            return 'normal';
+        };
+
+        // Robust markdown-aware word-by-word writer that wraps manually to avoid broken formatting
+        const writeLineWithMarkdown = (line, x) => {
             let currentX = x;
-            const parts = text.split(/(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*)/g).filter(p => p);
 
-            parts.forEach(part => {
-                let style = 'normal';
-                let textToPrint = part;
+            // top-level regex: captures markdown spans or plain runs
+            const outerRegex = /(\*\*\*[\s\S]*?\*\*\*|\*\*[\s\S]*?\*\*|\*[\s\S]*?\*|[^\*]+)/g;
+            const outerMatches = Array.from(line.matchAll(outerRegex)).map(m => m[0]);
 
-                if (part.startsWith('***') && part.endsWith('***')) {
-                    style = 'bolditalic';
-                    textToPrint = part.slice(3, -3);
-                } else if (part.startsWith('**') && part.endsWith('**')) {
-                    style = 'bold';
-                    textToPrint = part.slice(2, -2);
-                } else if (part.startsWith('*') && part.endsWith('*')) {
-                    style = 'italic';
-                    textToPrint = part.slice(1, -1);
+            for (const outer of outerMatches) {
+                let isMarkdownSpan = false;
+                let spanIsBold = false;
+                let spanIsItalic = false;
+                let spanText = outer;
+
+                if (outer.startsWith('***') && outer.endsWith('***')) {
+                    isMarkdownSpan = true;
+                    spanIsBold = true; spanIsItalic = true;
+                    spanText = outer.slice(3, -3);
+                } else if (outer.startsWith('**') && outer.endsWith('**')) {
+                    isMarkdownSpan = true;
+                    spanIsBold = true;
+                    spanText = outer.slice(2, -2);
+                } else if (outer.startsWith('*') && outer.endsWith('*')) {
+                    isMarkdownSpan = true;
+                    spanIsItalic = true;
+                    spanText = outer.slice(1, -1);
                 }
-                
-                doc.setFont(template.fontFamily || 'Helvetica', style);
-                doc.text(textToPrint, currentX, y);
-                currentX += doc.getStringUnitWidth(textToPrint) * fontSize / doc.internal.scaleFactor;
-            });
-            
+
+                // split spanText (or plain text) into tokens of words and whitespace to allow wrapping at word boundaries
+                const tokens = spanText.match(/(\s+|[^\s]+)/g) || [];
+
+                for (const token of tokens) {
+                    const isSpace = /^\s+$/.test(token);
+                    const textForMeasure = token;
+                    // set font style for measurement and drawing
+                    const styleName = fontStyleFor(spanIsBold, spanIsItalic);
+                    doc.setFont(template.fontFamily || 'Helvetica', styleName);
+                    // measure width in mm using same approach as before
+                    const tokenWidth = doc.getStringUnitWidth(textForMeasure) * fontSize / doc.internal.scaleFactor;
+
+                    // If token doesn't fit, wrap to next line
+                    if (currentX + tokenWidth > x + usableWidth) {
+                        // move to next line
+                        cursorY += lineHeight;
+                        addPageIfNeeded(lineHeight);
+                        currentX = x;
+                    }
+
+                    // draw token (including spaces to preserve spacing)
+                    // skip drawing purely empty spaces visually if you prefer, but drawing keeps alignment consistent
+                    if (token.trim() !== '') {
+                        doc.text(token, currentX, cursorY);
+                    } else {
+                        // for spaces, draw a single space to preserve measurement (some fonts collapse multiple spaces, but measurement remains)
+                        doc.text(token, currentX, cursorY);
+                    }
+
+                    currentX += tokenWidth;
+                }
+            }
+
+            // reset to normal font after line
             doc.setFont(template.fontFamily || 'Helvetica', 'normal');
         };
 
@@ -1404,7 +1452,7 @@ async function downloadPDF() {
         const finalRenderableContent = contentWithPlaceholders.replace(/\{\{(?!IMAGEN:)(.*?)\}\}/g, (_, key) => {
              const manualValues = {};
              const manualVarsForm = document.getElementById('manual-vars-form');
-             if (manualVarsForm.elements.length > 0) {
+             if (manualVarsForm && manualVarsForm.elements.length > 0) {
                  const formData = new FormData(manualVarsForm);
                  for (let [k, value] of formData.entries()) manualValues[k] = value;
              }
@@ -1416,7 +1464,7 @@ async function downloadPDF() {
              }
              return ``;
         });
-        
+
         const parts = finalRenderableContent.split(/(\{\{IMAGEN:.*?\}\})/g);
 
         for (const part of parts) {
@@ -1428,7 +1476,7 @@ async function downloadPDF() {
                     const aspectRatio = imgProps.width / imgProps.height;
                     let imgWidth = usableWidth;
                     let imgHeight = imgWidth / aspectRatio;
-                    
+
                     const maxImgHeight = pageHeight / 2;
                     if (imgHeight > maxImgHeight) {
                         imgHeight = maxImgHeight;
@@ -1442,22 +1490,24 @@ async function downloadPDF() {
             } else {
                 const paragraphs = part.split('\n');
                 paragraphs.forEach((paragraph, pIndex) => {
-                    if (paragraph.trim() === '' && pIndex < paragraphs.length -1) {
-                         addPageIfNeeded(lineHeight);
-                         cursorY += lineHeight;
-                         return;
+                    if (paragraph.trim() === '' && pIndex < paragraphs.length - 1) {
+                        addPageIfNeeded(lineHeight);
+                        cursorY += lineHeight;
+                        return;
                     }
-                    
-                    const lines = doc.splitTextToSize(paragraph, usableWidth);
-                    lines.forEach(line => {
-                         addPageIfNeeded(lineHeight);
-                         writeTextWithMarkdown(line, margin, cursorY);
-                         cursorY += lineHeight;
-                    });
+
+                    // We handle wrapping ourselves word-by-word to avoid splitTextToSize breaking markdown spans
+                    const lines = paragraph.split(/(?<=\n)|\n/); // paragraph is already single, keep as single "line" for our custom writer
+                    // Use our custom writer which will wrap at word boundaries
+                    // Start a new line for this paragraph if necessary
+                    addPageIfNeeded(lineHeight);
+                    writeLineWithMarkdown(paragraph, margin);
+                    cursorY += lineHeight;
                 });
+                // add a small gap after the part
             }
         }
-        
+
         doc.save(finalFilename);
         showToast('PDF generado correctamente.', 'success');
 
