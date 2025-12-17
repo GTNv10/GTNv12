@@ -1343,182 +1343,183 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // REEMPLAZA TU FUNCIÓN "downloadPDF" CON ESTA VERSIÓN COMPLETA Y CORREGIDA
 
-async function downloadPDF() {
-    if (!pendingPDFGeneration) return;
-    const { template, uploadedImages } = pendingPDFGeneration;
+// REEMPLAZA TU FUNCIÓN "downloadPDF" CON ESTA VERSIÓN MEJORADA Y OPTIMIZADA
+    async function downloadPDF() {
+        if (!pendingPDFGeneration) return;
+        const { template, uploadedImages } = pendingPDFGeneration;
 
-    const initialFilename = generatePdfFilename();
-    // don't pass an unused callback parameter to avoid "declared but never read"
-    const finalFilename = await showPromptModal('Confirmar nombre del archivo PDF', null, initialFilename);
+        const initialFilename = generatePdfFilename();
+        const finalFilename = await showPromptModal('Confirmar nombre del archivo PDF', null, initialFilename);
 
-    if (!finalFilename) return;
+        if (!finalFilename) return;
 
-    try {
-        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-        const margin = 20;
-        const usableWidth = doc.internal.pageSize.getWidth() - (2 * margin);
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const fontSize = 12;
-        // lineHeight in mm (approx conversion)
-        const lineHeight = (fontSize * 1.3) * 0.352778;
-        let cursorY = margin;
+        try {
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+            const margin = 20;
+            const usableWidth = doc.internal.pageSize.getWidth() - (2 * margin);
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const fontSize = 12;
+            const lineHeight = (fontSize * 1.3) * 0.352778; // Conversión aproximada pt a mm
+            let cursorY = margin;
 
-        const addPageIfNeeded = (requiredHeight) => {
-            if (cursorY + requiredHeight > pageHeight - margin) {
-                doc.addPage();
-                cursorY = margin;
-                return true;
-            }
-            return false;
-        };
-
-        // helper to set font style name supported by jsPDF
-        const fontStyleFor = (isBold, isItalic) => {
-            if (isBold && isItalic) return 'bolditalic';
-            if (isBold) return 'bold';
-            if (isItalic) return 'italic';
-            return 'normal';
-        };
-
-        // Robust markdown-aware word-by-word writer that wraps manually to avoid broken formatting
-        const writeLineWithMarkdown = (line, x) => {
-            let currentX = x;
-
-            // top-level regex: captures markdown spans or plain runs
-            const outerRegex = /(\*\*\*[\s\S]*?\*\*\*|\*\*[\s\S]*?\*\*|\*[\s\S]*?\*|[^\*]+)/g;
-            const outerMatches = Array.from(line.matchAll(outerRegex)).map(m => m[0]);
-
-            for (const outer of outerMatches) {
-                let isMarkdownSpan = false;
-                let spanIsBold = false;
-                let spanIsItalic = false;
-                let spanText = outer;
-
-                if (outer.startsWith('***') && outer.endsWith('***')) {
-                    isMarkdownSpan = true;
-                    spanIsBold = true; spanIsItalic = true;
-                    spanText = outer.slice(3, -3);
-                } else if (outer.startsWith('**') && outer.endsWith('**')) {
-                    isMarkdownSpan = true;
-                    spanIsBold = true;
-                    spanText = outer.slice(2, -2);
-                } else if (outer.startsWith('*') && outer.endsWith('*')) {
-                    isMarkdownSpan = true;
-                    spanIsItalic = true;
-                    spanText = outer.slice(1, -1);
+            const addPageIfNeeded = (requiredHeight) => {
+                if (cursorY + requiredHeight > pageHeight - margin) {
+                    doc.addPage();
+                    cursorY = margin;
+                    return true;
                 }
+                return false;
+            };
 
-                // split spanText (or plain text) into tokens of words and whitespace to allow wrapping at word boundaries
-                const tokens = spanText.match(/(\s+|[^\s]+)/g) || [];
-
-                for (const token of tokens) {
-                    const isSpace = /^\s+$/.test(token);
-                    const textForMeasure = token;
-                    // set font style for measurement and drawing
-                    const styleName = fontStyleFor(spanIsBold, spanIsItalic);
-                    doc.setFont(template.fontFamily || 'Helvetica', styleName);
-                    // measure width in mm using same approach as before
-                    const tokenWidth = doc.getStringUnitWidth(textForMeasure) * fontSize / doc.internal.scaleFactor;
-
-                    // If token doesn't fit, wrap to next line
-                    if (currentX + tokenWidth > x + usableWidth) {
-                        // move to next line
-                        cursorY += lineHeight;
-                        addPageIfNeeded(lineHeight);
-                        currentX = x;
-                    }
-
-                    // draw token (including spaces to preserve spacing)
-                    // skip drawing purely empty spaces visually if you prefer, but drawing keeps alignment consistent
-                    if (token.trim() !== '') {
-                        doc.text(token, currentX, cursorY);
-                    } else {
-                        // for spaces, draw a single space to preserve measurement (some fonts collapse multiple spaces, but measurement remains)
-                        doc.text(token, currentX, cursorY);
-                    }
-
-                    currentX += tokenWidth;
-                }
-            }
-
-            // reset to normal font after line
-            doc.setFont(template.fontFamily || 'Helvetica', 'normal');
-        };
-
-        doc.setFont(template.fontFamily || 'Helvetica', 'normal');
-        doc.setFontSize(fontSize);
-
-        const contentWithPlaceholders = pendingPDFGeneration.template.content;
-        const finalRenderableContent = contentWithPlaceholders.replace(/\{\{(?!IMAGEN:)(.*?)\}\}/g, (_, key) => {
-             const manualValues = {};
-             const manualVarsForm = document.getElementById('manual-vars-form');
-             if (manualVarsForm && manualVarsForm.elements.length > 0) {
-                 const formData = new FormData(manualVarsForm);
-                 for (let [k, value] of formData.entries()) manualValues[k] = value;
-             }
-             key = key.trim();
-             if (manualValues.hasOwnProperty(key)) return manualValues[key];
-             if (pendingPDFGeneration.rowData.hasOwnProperty(key)) {
-                 const value = String(pendingPDFGeneration.rowData[key] ?? '');
-                 return value.trim() ? value : '';
-             }
-             return ``;
-        });
-
-        const parts = finalRenderableContent.split(/(\{\{IMAGEN:.*?\}\})/g);
-
-        for (const part of parts) {
-            if (part.startsWith('{{IMAGEN:')) {
-                const imageName = part.slice(9, -2).trim();
-                const base64Image = uploadedImages[imageName];
-                if (base64Image) {
-                    const imgProps = doc.getImageProperties(base64Image);
-                    const aspectRatio = imgProps.width / imgProps.height;
-                    let imgWidth = usableWidth;
-                    let imgHeight = imgWidth / aspectRatio;
-
-                    const maxImgHeight = pageHeight / 2;
-                    if (imgHeight > maxImgHeight) {
-                        imgHeight = maxImgHeight;
-                        imgWidth = imgHeight * aspectRatio;
-                    }
-
-                    addPageIfNeeded(imgHeight + lineHeight);
-                    doc.addImage(base64Image, 'JPEG', margin, cursorY, imgWidth, imgHeight);
-                    cursorY += imgHeight + lineHeight;
-                }
-            } else {
-                const paragraphs = part.split('\n');
-                paragraphs.forEach((paragraph, pIndex) => {
-                    if (paragraph.trim() === '' && pIndex < paragraphs.length - 1) {
-                        addPageIfNeeded(lineHeight);
-                        cursorY += lineHeight;
-                        return;
-                    }
-
-                    // We handle wrapping ourselves word-by-word to avoid splitTextToSize breaking markdown spans
-                    const lines = paragraph.split(/(?<=\n)|\n/); // paragraph is already single, keep as single "line" for our custom writer
-                    // Use our custom writer which will wrap at word boundaries
-                    // Start a new line for this paragraph if necessary
-                    addPageIfNeeded(lineHeight);
-                    writeLineWithMarkdown(paragraph, margin);
-                    cursorY += lineHeight;
+            // Función auxiliar para parsear Markdown por capas (MUCHO MÁS ROBUSTA)
+            const parseStyledText = (text) => {
+                const parts = [];
+                // 1. Cortamos por Negrita (**)
+                const boldSegments = text.split('**');
+                
+                boldSegments.forEach((segment, boldIndex) => {
+                    // Si el índice es impar (1, 3, 5...), es Negrita. Si es par (0, 2...), es normal.
+                    const isBold = boldIndex % 2 !== 0;
+                    
+                    // 2. Cortamos por Cursiva (*) lo que ya tenemos
+                    const italicSegments = segment.split('*');
+                    
+                    italicSegments.forEach((subSegment, italicIndex) => {
+                        // Si el índice es impar, es Cursiva.
+                        const isItalic = italicIndex % 2 !== 0;
+                        
+                        if (subSegment.length > 0) {
+                            parts.push({
+                                text: subSegment,
+                                bold: isBold,
+                                italic: isItalic
+                            });
+                        }
+                    });
                 });
-                // add a small gap after the part
+                return parts;
+            };
+
+            // Función para elegir el estilo de fuente correcto
+            const getFontStyle = (bold, italic) => {
+                if (bold && italic) return 'bolditalic';
+                if (bold) return 'bold';
+                if (italic) return 'italic';
+                return 'normal';
+            };
+
+            // Escritor inteligente que envuelve palabras
+            const writeLineWithMarkdown = (line, x) => {
+                let currentX = x;
+                
+                // Obtenemos los segmentos ya procesados (Ej: {text: "hola", bold: true...})
+                const segments = parseStyledText(line);
+
+                for (const segment of segments) {
+                    // Configuramos la fuente para este segmento
+                    const styleName = getFontStyle(segment.bold, segment.italic);
+                    doc.setFont(template.fontFamily || 'Helvetica', styleName);
+
+                    // Dividimos por palabras para poder hacer salto de línea si es necesario
+                    // El regex (\s+) mantiene los espacios como tokens separados
+                    const tokens = segment.text.split(/(\s+)/);
+
+                    for (const token of tokens) {
+                        if (token.length === 0) continue;
+
+                        const tokenWidth = doc.getStringUnitWidth(token) * fontSize / doc.internal.scaleFactor;
+
+                        // Si la palabra no entra, bajamos de renglón
+                        if (currentX + tokenWidth > x + usableWidth) {
+                            cursorY += lineHeight;
+                            addPageIfNeeded(lineHeight);
+                            currentX = x;
+                        }
+
+                        doc.text(token, currentX, cursorY);
+                        currentX += tokenWidth;
+                    }
+                }
+                
+                // Reseteamos a normal por seguridad
+                doc.setFont(template.fontFamily || 'Helvetica', 'normal');
+            };
+
+            doc.setFont(template.fontFamily || 'Helvetica', 'normal');
+            doc.setFontSize(fontSize);
+
+            // Reemplazo de variables (Lógica original mantenida y limpia)
+            const contentWithPlaceholders = pendingPDFGeneration.template.content;
+            const finalRenderableContent = contentWithPlaceholders.replace(/\{\{(?!IMAGEN:)(.*?)\}\}/g, (_, key) => {
+                 const manualValues = {};
+                 const manualVarsForm = document.getElementById('manual-vars-form');
+                 if (manualVarsForm && manualVarsForm.elements.length > 0) {
+                     const formData = new FormData(manualVarsForm);
+                     for (let [k, value] of formData.entries()) manualValues[k] = value;
+                 }
+                 key = key.trim();
+                 if (manualValues.hasOwnProperty(key)) return manualValues[key];
+                 if (pendingPDFGeneration.rowData.hasOwnProperty(key)) {
+                     const value = String(pendingPDFGeneration.rowData[key] ?? '');
+                     return value.trim() ? value : '';
+                 }
+                 return ``;
+            });
+
+            // División por imágenes
+            const parts = finalRenderableContent.split(/(\{\{IMAGEN:.*?\}\})/g);
+
+            for (const part of parts) {
+                if (part.startsWith('{{IMAGEN:')) {
+                    const imageName = part.slice(9, -2).trim();
+                    const base64Image = uploadedImages[imageName];
+                    if (base64Image) {
+                        const imgProps = doc.getImageProperties(base64Image);
+                        const aspectRatio = imgProps.width / imgProps.height;
+                        let imgWidth = usableWidth;
+                        let imgHeight = imgWidth / aspectRatio;
+
+                        const maxImgHeight = pageHeight / 2;
+                        if (imgHeight > maxImgHeight) {
+                            imgHeight = maxImgHeight;
+                            imgWidth = imgHeight * aspectRatio;
+                        }
+
+                        addPageIfNeeded(imgHeight + lineHeight);
+                        doc.addImage(base64Image, 'JPEG', margin, cursorY, imgWidth, imgHeight);
+                        cursorY += imgHeight + lineHeight;
+                    }
+                } else {
+                    // Procesamiento de texto párrafo por párrafo
+                    const paragraphs = part.split('\n');
+                    paragraphs.forEach((paragraph, pIndex) => {
+                        // Si el párrafo está vacío (salto de línea manual del usuario)
+                        if (paragraph.trim() === '') {
+                             if (pIndex < paragraphs.length - 1) { // Solo si no es el último
+                                cursorY += lineHeight;
+                                addPageIfNeeded(lineHeight);
+                             }
+                             return;
+                        }
+
+                        addPageIfNeeded(lineHeight);
+                        writeLineWithMarkdown(paragraph, margin);
+                        cursorY += lineHeight;
+                    });
+                }
             }
+
+            doc.save(finalFilename);
+            showToast('PDF generado correctamente.', 'success');
+
+        } catch (e) {
+            console.error("Error al generar PDF:", e);
+            showToast('Hubo un error inesperado al generar el PDF.', 'error');
+        } finally {
+            elements.previewModal.classList.remove('active');
+            pendingPDFGeneration = null;
         }
-
-        doc.save(finalFilename);
-        showToast('PDF generado correctamente.', 'success');
-
-    } catch (e) {
-        console.error("Error al generar PDF:", e);
-        showToast('Hubo un error inesperado al generar el PDF.', 'error');
-    } finally {
-        elements.previewModal.classList.remove('active');
-        pendingPDFGeneration = null;
     }
-}
 
     
     function openColumnsModal() {
