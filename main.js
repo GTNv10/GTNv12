@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedColumnNameForDeletion = null;
     let pendingPDFGeneration = null;
     let searchDebounceTimer;
-
+    
     let currentPage = 1;
 
     const elements = {
@@ -64,15 +64,15 @@ document.addEventListener('DOMContentLoaded', () => {
             container.innerHTML = html;
             return container;
         };
-
+        
         elements.templateModal.innerHTML = `<div class="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto"><h3 id="modal-title" class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">Crear/Editar Plantilla</h3><div class="space-y-6"><input type="hidden" id="template-id"><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label for="template-name" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Nombre</label><input type="text" id="template-name" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200" placeholder="Ej: Notificación de Vencimiento"></div><div><label for="template-font" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Tipo de Letra (PDF)</label><select id="template-font" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200"><option value="Helvetica">Helvetica (Normal)</option><option value="Times">Times (Serif)</option><option value="Courier">Courier (Monoespaciada)</option></select></div></div><div><label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Variables (clic para insertar)</label><div id="placeholders-container" class="flex flex-wrap gap-2 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border dark:border-gray-600 min-h-[60px]"></div></div><div><label for="manual-field-input" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Añadir Campo de Pregunta (Manual)</label><div class="flex gap-2"><input type="text" id="manual-field-input" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200" placeholder="Nombre del campo, ej: Fecha de Notificación"><button id="add-manual-field-btn" type="button" class="bg-purple-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-purple-600 text-nowrap">Añadir</button></div></div><div><label for="template-content" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Contenido</label><div class="flex items-center gap-2 mb-2"><button id="format-bold-btn" type="button" class="bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 px-3 py-1 rounded-md text-sm font-bold hover:bg-gray-300 dark:hover:bg-gray-500" title="Negrita">B</button><button id="format-italic-btn" type="button" class="bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 px-3 py-1 rounded-md text-sm italic hover:bg-gray-300 dark:hover:bg-gray-500" title="Cursiva">C</button></div><textarea id="template-content" rows="12" class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg font-mono text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200" placeholder="Escribe aquí... Usa {{Variable}} para insertar datos."></textarea></div></div><div class="mt-8 flex justify-end space-x-3"><button id="cancel-template-btn" class="bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 font-bold py-3 px-6 rounded-lg">Cancelar</button><button id="save-template-btn" class="bg-sky-600 text-white font-bold py-3 px-6 rounded-lg">Guardar</button></div></div>`;
         elements.manualVarsModal.innerHTML = `<div class="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto"><h3 class="text-3xl font-bold mb-6 text-gray-900 dark:text-gray-100">Completar Datos Manuales</h3><form id="manual-vars-form" class="space-y-4"></form><div class="mt-8 flex justify-end space-x-3"><button id="cancel-manual-vars-btn" class="bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 font-bold py-3 px-6 rounded-lg">Cancelar</button><button id="submit-manual-vars-btn" class="bg-sky-600 text-white font-bold py-3 px-6 rounded-lg">Continuar</button></div></div>`;
         elements.previewModal.innerHTML = `<div class="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-3xl max-h-[90vh] overflow-y-auto"><h3 class="text-3xl font-bold mb-6 text-gray-900 dark:text-gray-100">Previsualizar y Generar PDF</h3><pre id="preview-text" class="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-200 max-h-72 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 rounded border dark:border-gray-600 font-sans leading-relaxed"></pre><div class="mt-8 flex justify-end space-x-3"><button id="cancel-preview-btn" class="bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 font-bold py-3 px-6 rounded-lg">Cancelar</button><button id="download-pdf-btn" class="bg-green-500 text-white font-bold py-3 px-6 rounded-lg">Descargar PDF</button></div></div>`;
-
+        
         elements.dbModal.innerHTML = `<div class="modal-content bg-white dark:bg-gray-800 w-screen h-screen max-w-none max-h-none rounded-none shadow-2xl p-6 flex flex-col"><div class="flex justify-between items-center mb-4 pb-4 border-b dark:border-gray-700"><h3 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Gestionar Bases de Datos y Ajustes</h3><div class="flex items-center gap-4"><button id="export-db-btn" class="bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600">Exportar BD (JSON)</button><button id="close-db-btn" class="text-4xl text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400">&times;</button></div></div><div id="db-tables-container" class="flex-grow overflow-y-auto pr-4 grid grid-cols-1 lg:grid-cols-2 gap-8"></div></div>`;
-
+        
         elements.columnsModal.innerHTML = `<div class="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-5xl max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-6"><h3 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Gestionar Columnas</h3><div><button id="add-col-btn" class="bg-sky-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-600 mr-2">Añadir Columna</button><button id="delete-col-btn" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 disabled:bg-gray-400" disabled>Eliminar Seleccionada</button></div></div><div id="column-key-settings" class="mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/50 rounded-lg"></div><div class="flex-grow overflow-y-auto pr-4 space-y-2" id="columns-list"></div><div class="mt-8 pt-4 border-t dark:border-gray-700 flex justify-end"><button id="close-columns-btn" class="bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 font-bold py-3 px-6 rounded-lg">Cerrar</button></div></div>`;
-
+    
         const promptModalHTML = `<div class="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md"><form id="prompt-form"><h3 id="prompt-title" class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4"></h3><input type="text" id="prompt-input" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200" required><div class="mt-6 flex justify-end space-x-3"><button type="button" id="prompt-cancel-btn" class="bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 font-bold py-2 px-5 rounded-lg">Cancelar</button><button type="submit" id="prompt-submit-btn" class="bg-sky-600 text-white font-bold py-2 px-5 rounded-lg">Aceptar</button></div></form></div>`;
         elements.promptModal = createAndAppend('prompt-modal', promptModalHTML);
 
@@ -103,16 +103,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const calculateDays = (dateStr) => { const date = parseDate(dateStr); if (!date) return ''; const today = new Date(); const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())); return Math.ceil((date - todayUTC) / (1000 * 60 * 60 * 24)) * -1; };
     function formatCuitCuil(value) { if (!value) return ''; const cleaned = String(value).replace(/[^0-9]/g, ''); if (cleaned.length !== 11) return value; return `${cleaned.substring(0, 2)}-${cleaned.substring(2, 10)}-${cleaned.substring(10)}`; }
-
+    
     // ### DATA MANAGEMENT ###
-    function saveData() {
-        if (elements.temporalModeCheckbox.checked) return;
-        try {
-            localStorage.setItem('gestorReclamosData_v43_generic', JSON.stringify(appData));
-        } catch (e) {
-            console.error("Error guardando datos:", e);
-            showToast("Error al guardar datos.", "error");
-        }
+    function saveData() { 
+        if (elements.temporalModeCheckbox.checked) return; 
+        try { 
+            localStorage.setItem('gestorReclamosData_v43_generic', JSON.stringify(appData)); 
+        } catch (e) { 
+            console.error("Error guardando datos:", e); 
+            showToast("Error al guardar datos.", "error"); 
+        } 
     }
 
     function loadData() {
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (storedData) {
             try {
                 const parsed = JSON.parse(storedData);
-                if (parsed.headers && parsed.mainData) {
+                if(parsed.headers && parsed.mainData) { 
                     appData = parsed;
                     // --- Start Data Migration & Defaulting ---
                     if (!parsed.visualAlerts) appData.visualAlerts = [];
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
                     if (!Array.isArray(parsed.filters)) appData.filters = [];
-
+                    
                     if (parsed.hiddenStatuses && !parsed.hideSettings) {
                         appData.hideSettings = {
                             column: parsed.colorCodingColumn || 'ESTADO', // Usa la columna de color como un default razonable
@@ -144,18 +144,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         delete appData.hiddenStatuses; // Elimina la propiedad antigua
                         showToast('Configuración de ocultar por defecto actualizada.', 'info');
                     } else if (!parsed.hideSettings) {
-                        appData.hideSettings = { column: 'ESTADO', hiddenValues: [] };
+                         appData.hideSettings = { column: 'ESTADO', hiddenValues: [] };
                     }
-
+                    
                     if (!parsed.templates) appData.templates = [];
-                    parsed.templates.forEach(t => {
-                        if (!t.manualFields) t.manualFields = [];
+                    parsed.templates.forEach(t => { 
+                        if (!t.manualFields) t.manualFields = []; 
                         if (!t.imageFields) t.imageFields = [];
                         if (!t.fontFamily) t.fontFamily = 'Helvetica';
                     });
                     if (!parsed.columnFormats) appData.columnFormats = {};
                     if (!parsed.lookupRelations) appData.lookupRelations = [];
-
+                    
                     if (!parsed.referenceDB) appData.referenceDB = {};
                     if (parsed.referenceDB.statuses && !parsed.colorCodingColumn) {
                         const listKey = '_list_ESTADO';
@@ -167,11 +167,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         showToast('Configuración de colores actualizada al nuevo sistema.', 'info');
                     }
                     if (!appData.referenceDB['_list_ESTADO']) {
-                        appData.referenceDB['_list_ESTADO'] = {
+                         appData.referenceDB['_list_ESTADO'] = {
                             '__DEFAULT__': { light: '#f9fafb', dark: '#111827', textLight: '#1f2937', textDark: '#f3f4f6' },
                             'EN TRÁMITE': { light: '#fef9c3', dark: '#422006', textLight: '#713f12', textDark: '#fef08a' },
                             'FINALIZADO': { light: '#dcfce7', dark: '#14532d', textLight: '#166534', textDark: '#bbf7d0' },
-                        };
+                         };
                     }
 
                     if (!parsed.columnWidths) appData.columnWidths = {};
@@ -183,9 +183,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!parsed.tableTextColor) appData.tableTextColor = 'inherit';
                     if (!parsed.rowsPerPage) appData.rowsPerPage = 10;
                     if (!parsed.colorCodingColumn) appData.colorCodingColumn = 'ESTADO';
-                    if (!parsed.bulkDeleteColumn) appData.bulkDeleteColumn = 'ESTADO';
+                    if (!parsed.bulkDeleteColumn) appData.bulkDeleteColumn = 'ESTADO'; 
                     if (!parsed.selectedRowIdentifierColumn) appData.selectedRowIdentifierColumn = 'EXPEDIENTE';
-
+                    
                     if (!parsed.keyColumns) {
                         appData.keyColumns = {};
                         const possibleDateCols = ['FECHA ULTIMA / PROXIMA ACCION', 'FECHA ULTIMA/ PROXIMA ACCION'];
@@ -197,14 +197,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     // --- End Data Migration ---
                     return;
                 }
-            } catch (e) { console.error("Error cargando datos:", e); }
+            } catch(e) { console.error("Error cargando datos:", e); }
         }
-
+        
         // --- INITIAL DATA STRUCTURE ---
         appData = {
             mainData: [],
             templates: [],
-            visualAlerts: [{ id: 1, enabled: true, color: { bg: '#fee2e2', text: '#991b1b' }, condition: '>=', value: '10' }],
+            visualAlerts: [{ id: 1, enabled: true, color: { bg: '#fee2e2', text: '#991b1b'}, condition: '>=', value: '10' }],
             filters: [],
             hideSettings: {
                 column: 'ESTADO',
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'RECHAZADO': { light: '#fee2e2', dark: '#7f1d1d', textLight: '#991b1b', textDark: '#fecaca' }
                 }
             },
-            headers: ["FECHA DE INICIO", "EXPEDIENTE", "ESTADO", "FECHA ULTIMA/ PROXIMA ACCION", "DIAS", "N° EMPRESA", "NOMBRE EMPRESA", "CUIT EMPRESA"],
+            headers: [ "FECHA DE INICIO", "EXPEDIENTE", "ESTADO", "FECHA ULTIMA/ PROXIMA ACCION", "DIAS", "N° EMPRESA", "NOMBRE EMPRESA", "CUIT EMPRESA" ],
             keyColumns: {
                 dateForCalculation: 'FECHA ULTIMA/ PROXIMA ACCION',
                 daysDisplay: 'DIAS'
@@ -228,9 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
             columnMetadata: {
                 "DIAS": { isProtected: true }
             },
-            columnFormats: {
-                'FECHA DE INICIO': 'date',
-                'FECHA ULTIMA/ PROXIMA ACCION': 'date',
+            columnFormats: { 
+                'FECHA DE INICIO': 'date', 
+                'FECHA ULTIMA/ PROXIMA ACCION': 'date', 
                 'ESTADO': 'list',
                 'CUIT EMPRESA': 'cuit'
             },
@@ -253,11 +253,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let hasChanges = false;
         const dateCol = appData.keyColumns?.dateForCalculation;
         const daysCol = appData.keyColumns?.daysDisplay;
-
+        
         if (!dateCol || !daysCol || !appData.headers.includes(dateCol) || !appData.headers.includes(daysCol)) {
             return;
         }
-
+        
         appData.mainData.forEach(row => {
             const newDays = calculateDays(row[dateCol]);
             if (String(row[daysCol] || '') !== String(newDays || '')) {
@@ -271,14 +271,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function sortAndApplyFilters() {
         const generalQuery = elements.searchInput.value.toLowerCase().trim();
         let data = [...appData.mainData];
-
+        
         const hideSettings = appData.hideSettings;
         if (hideSettings && hideSettings.column && hideSettings.hiddenValues && hideSettings.hiddenValues.length > 0 && !generalQuery) {
             data = data.filter(row => !hideSettings.hiddenValues.includes(row[hideSettings.column]));
         }
 
         if (generalQuery) {
-            data = data.filter(row =>
+            data = data.filter(row => 
                 appData.headers.some(header => String(row[header] || '').toLowerCase().includes(generalQuery))
             );
         }
@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (appData.filters && appData.filters.length > 0) {
             appData.filters.forEach(filter => {
                 if (!filter.column || filter.value === undefined || filter.value === '') return;
-
+                
                 data = data.filter(row => {
                     const rowValue = row[filter.column];
                     const filterValue = filter.value;
@@ -300,21 +300,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         const rowDate = parseDate(rowValue);
                         const filterDate = parseDate(filterValue);
                         if (!rowDate || !filterDate) return false;
-
-                        rowDate.setUTCHours(0, 0, 0, 0);
-                        filterDate.setUTCHours(0, 0, 0, 0);
+                        
+                        rowDate.setUTCHours(0,0,0,0);
+                        filterDate.setUTCHours(0,0,0,0);
 
                         if (filter.condition === '>=') return rowDate >= filterDate;
                         if (filter.condition === '<=') return rowDate <= filterDate;
                         if (filter.condition === '=') return rowDate.getTime() === filterDate.getTime();
                         return false;
                     } else if (!isNaN(parseFloat(rowValue)) && !isNaN(parseFloat(filterValue))) {
-                        const rowValNum = parseFloat(rowValue);
-                        const filterValNum = parseFloat(filterValue);
-                        if (filter.condition === '>=') return rowValNum >= filterValNum;
-                        if (filter.condition === '<=') return rowValNum <= filterValNum;
-                        if (filter.condition === '=') return rowValNum === filterValNum;
-                        return false;
+                         const rowValNum = parseFloat(rowValue);
+                         const filterValNum = parseFloat(filterValue);
+                         if (filter.condition === '>=') return rowValNum >= filterValNum;
+                         if (filter.condition === '<=') return rowValNum <= filterValNum;
+                         if (filter.condition === '=') return rowValNum === filterValNum;
+                         return false;
                     } else {
                         return String(rowValue).toLowerCase().includes(String(filterValue).toLowerCase());
                     }
@@ -340,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (typeof valA === 'string' && typeof valB === 'string') {
                     valA = valA.toLowerCase();
                     valB = valB.toLowerCase();
-                }
+        }
 
                 if (valA < valB) return -1 * sortOrder;
                 if (valA > valB) return 1 * sortOrder;
@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         filteredData = data;
-
+        
         if (currentPage > Math.ceil(filteredData.length / appData.rowsPerPage) && filteredData.length > 0) {
             currentPage = Math.ceil(filteredData.length / appData.rowsPerPage);
         } else if (filteredData.length === 0) {
@@ -359,12 +359,12 @@ document.addEventListener('DOMContentLoaded', () => {
         renderTable();
         updateSummaryBar();
     }
-
+    
     function handleCellUpdate(rowId, column, value) {
         const rowIndex = appData.mainData.findIndex(r => r.id === rowId);
         if (rowIndex === -1) return;
         const row = appData.mainData[rowIndex];
-
+        
         const cellElement = document.querySelector(`[data-row-id="${rowId}"] [data-column-header="${column}"] > *`);
         let finalValue = value;
         const columnFormat = appData.columnFormats[column];
@@ -374,22 +374,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (value && !parsed) {
                 showToast(`Formato de fecha inválido para '${value}'. Use DD/MM/YYYY.`, 'error');
                 if (cellElement) cellElement.classList.add('invalid-cell');
-                return;
+                return; 
             }
             if (cellElement) cellElement.classList.remove('invalid-cell');
             finalValue = parsed ? formatDate(parsed) : '';
         } else if (columnFormat === 'cuit') {
             finalValue = formatCuitCuil(value);
         }
-
+        
         const dateCalcCol = appData.keyColumns?.dateForCalculation;
         const daysDisplayCol = appData.keyColumns?.daysDisplay;
 
         if (row[column] === finalValue && column !== dateCalcCol) return;
-
+        
         row[column] = finalValue;
         let needsRerender = false;
-
+        
         (appData.lookupRelations || []).forEach(relation => {
             if (relation.enabled && relation.keyColumn === column && relation.sourceDB) {
                 const sourceData = appData.referenceDB[relation.sourceDB]?.[finalValue];
@@ -413,14 +413,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
-
+        
         if (dateCalcCol && daysDisplayCol && column === dateCalcCol) {
             row[daysDisplayCol] = calculateDays(finalValue);
             needsRerender = true;
-        }
-
+        } 
+        
         saveData();
-        if (needsRerender || column === appData.colorCodingColumn || column === appData.selectedRowIdentifierColumn) {
+        if(needsRerender || column === appData.colorCodingColumn || column === appData.selectedRowIdentifierColumn) {
             sortAndApplyFilters();
             updateSelectedRowIdentifierDisplay();
         }
@@ -430,19 +430,19 @@ document.addEventListener('DOMContentLoaded', () => {
     function addRow(showToastNotification = true) {
         const newRow = { id: `row_${Date.now()}` };
         appData.headers.forEach(header => newRow[header] = '');
-
+        
         const sortColumn = appData.sortBy;
         if (sortColumn && appData.columnFormats[sortColumn] === 'date') {
             newRow[sortColumn] = formatDate(new Date());
         }
 
-        currentPage = 1;
+        currentPage = 1; 
 
-        appData.mainData.unshift(newRow);
-
+        appData.mainData.unshift(newRow); 
+        
         saveData();
-        sortAndApplyFilters();
-
+        sortAndApplyFilters(); 
+        
         if (showToastNotification) {
             showToast('Nueva fila añadida.', 'success');
         }
@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Fila eliminada.', 'success');
         });
     }
-
+    
     // ### RENDERING & UI ###
     function renderTable() {
         elements.tableContainer.style.setProperty('--table-font-size', `${appData.tableFontSize || 14}px`);
@@ -467,8 +467,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const table = document.createElement('table');
         table.id = "data-table";
         const thead = document.createElement('thead');
-
-        const headersHtml = `<th class="sticky-col p-1 w-12 bg-gray-100 dark:bg-gray-800 border-b-2 dark:border-gray-600"></th>` +
+        
+        const headersHtml = `<th class="sticky-col p-1 w-12 bg-gray-100 dark:bg-gray-800 border-b-2 dark:border-gray-600"></th>` + 
             appData.headers.map(h => {
                 const width = appData.columnWidths[h] || 'auto';
                 const headerStyle = `style="width: ${width}; min-width: ${width === 'auto' ? '120px' : width};"`;
@@ -478,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         thead.innerHTML = `<tr class="sticky-header text-xs text-gray-700 dark:text-gray-400 uppercase bg-gray-100 dark:bg-gray-800 shadow-sm">${headersHtml}</tr>`;
         table.appendChild(thead);
-
+        
         const tbody = document.createElement('tbody');
         const paginatedData = filteredData.slice((currentPage - 1) * appData.rowsPerPage, currentPage * appData.rowsPerPage);
 
@@ -487,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             const theme = elements.htmlTag.classList.contains('dark') ? 'dark' : 'light';
             const daysDisplayCol = appData.keyColumns?.daysDisplay;
-
+            
             const colorColumn = appData.colorCodingColumn;
             const colorDbKey = colorColumn ? `_list_${colorColumn}` : null;
             const colorDb = colorDbKey ? appData.referenceDB[colorDbKey] : null;
@@ -519,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 }
-
+                 
                 const selectionTd = document.createElement('td');
                 selectionTd.className = "sticky-col p-1 text-center";
                 let rowBgColor = 'inherit';
@@ -527,27 +527,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     rowBgColor = tr.style.backgroundColor;
                 } else {
                     const isEven = rowIndex % 2 === 1;
-                    if (theme === 'dark') {
-                        rowBgColor = isEven ? '#1f2937' : '#111827';
+                     if(theme === 'dark') {
+                       rowBgColor = isEven ? '#1f2937' : '#111827';
                     } else {
-                        rowBgColor = isEven ? '#ffffff' : '#f9fafb';
+                       rowBgColor = isEven ? '#ffffff' : '#f9fafb';
                     }
                 }
                 selectionTd.style.backgroundColor = isSelected ? '' : rowBgColor;
-
+                
                 const selectButton = document.createElement('button');
                 selectButton.className = `selection-button flex items-center justify-center w-8 h-8 rounded-md transition-colors ${isSelected ? 'bg-sky-600 text-white' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'}`;
                 selectButton.innerHTML = isSelected ? `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>` : '';
                 selectButton.onclick = () => handleRowSelection(row.id);
                 selectionTd.appendChild(selectButton);
                 tr.appendChild(selectionTd);
-
+                
                 appData.headers.forEach(header => {
                     const value = row[header] ?? '';
                     const td = document.createElement('td');
                     td.className = "p-0 text-center align-middle";
                     td.dataset.columnHeader = header;
-
+                    
                     if (header === daysDisplayCol) {
                         const diasValue = parseInt(value, 10);
                         const sortedAlerts = appData.visualAlerts ? [...appData.visualAlerts].sort((a, b) => b.value - a.value) : [];
@@ -568,7 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                     }
-
+                    
                     const format = appData.columnFormats[header];
                     if (format === 'list') {
                         const listKey = `_list_${header}`;
@@ -592,7 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         div.setAttribute('contenteditable', 'true');
                         div.textContent = value;
                         div.onblur = (e) => handleCellUpdate(row.id, header, e.target.textContent);
-                        div.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } };
+                        div.onkeydown = (e) => { if(e.key === 'Enter') { e.preventDefault(); e.target.blur(); }};
                         div.style.color = 'inherit';
                         td.appendChild(div);
                     }
@@ -622,7 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.rowCount.textContent = `${filteredData.length} de ${appData.mainData.length} registros`;
         renderPagination();
     }
-
+    
     function createDateInputComponent(initialValue, onUpdateCallback) {
         const input = document.createElement('input');
         input.type = "text";
@@ -631,7 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let valueOnFocus = initialValue;
 
         input.onfocus = (e) => {
-            valueOnFocus = e.target.value;
+            valueOnFocus = e.target.value; 
             e.target.type = 'date';
             const date = parseDate(valueOnFocus);
             if (date) {
@@ -688,20 +688,20 @@ document.addEventListener('DOMContentLoaded', () => {
         nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; renderTable(); } };
         container.appendChild(nextBtn);
     }
-
+    
     function renderFilters() {
         elements.filtersContainer.innerHTML = '';
         const activeFiltersContainer = document.createElement('div');
         activeFiltersContainer.id = 'active-filters-list';
         activeFiltersContainer.className = 'space-y-2 w-full';
-
+        
         appData.filters.forEach((filter, index) => {
             const filterEl = createFilterUI(filter, index);
             activeFiltersContainer.appendChild(filterEl);
         });
 
         elements.filtersContainer.appendChild(activeFiltersContainer);
-
+        
         const controlsContainer = document.createElement('div');
         controlsContainer.className = 'flex items-center gap-2 mt-2';
 
@@ -743,7 +743,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function createFilterUI(filter, index) {
         const wrapper = document.createElement('div');
         wrapper.className = 'flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg w-full';
-
+        
         const columnSelect = document.createElement('select');
         columnSelect.className = 'p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm w-40';
         columnSelect.innerHTML = `<option value="">-- Columna --</option>` + appData.headers.map(h => `<option value="${h}" ${filter.column === h ? 'selected' : ''}>${h}</option>`).join('');
@@ -758,14 +758,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (filter.column) {
             const format = appData.columnFormats[filter.column] || 'text';
-
+            
             const conditionSelect = document.createElement('select');
             conditionSelect.className = 'p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm';
             if (format === 'date' || !isNaN(parseFloat(appData.mainData[0]?.[filter.column]))) {
-                conditionSelect.innerHTML = `<option value=">=" ${filter.condition === '>=' ? 'selected' : ''}> >= </option><option value="<=" ${filter.condition === '<=' ? 'selected' : ''}> <= </option><option value="=" ${filter.condition === '=' ? 'selected' : ''}> = </option>`;
-            } else {
-                conditionSelect.innerHTML = `<option value="=" ${filter.condition === '=' ? 'selected' : ''}>Es igual a</option>`;
-                filter.condition = '=';
+                 conditionSelect.innerHTML = `<option value=">=" ${filter.condition === '>=' ? 'selected':''}> >= </option><option value="<=" ${filter.condition === '<=' ? 'selected':''}> <= </option><option value="=" ${filter.condition === '=' ? 'selected':''}> = </option>`;
+            } else { 
+                 conditionSelect.innerHTML = `<option value="=" ${filter.condition === '=' ? 'selected':''}>Es igual a</option>`;
+                 filter.condition = '=';
             }
             conditionSelect.onchange = (e) => { filter.condition = e.target.value; saveData(); };
             wrapper.appendChild(conditionSelect);
@@ -780,14 +780,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 valueSelect.onchange = (e) => { filter.value = e.target.value; saveData(); };
                 wrapper.appendChild(valueSelect);
             } else if (format === 'date') {
-                const valueInput = createDateInputComponent(filter.value || '', (newValue) => {
+                 const valueInput = createDateInputComponent(filter.value || '', (newValue) => {
                     filter.value = newValue;
                     saveData();
                 });
                 valueInput.placeholder = "DD/MM/YYYY";
                 valueInput.className = 'flex-grow p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm';
                 wrapper.appendChild(valueInput);
-            } else {
+            } else { 
                 const valueInput = document.createElement('input');
                 valueInput.type = 'text';
                 valueInput.placeholder = 'Valor...';
@@ -797,7 +797,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 wrapper.appendChild(valueInput);
             }
         }
-
+        
         const removeBtn = document.createElement('button');
         removeBtn.innerHTML = '&times;';
         removeBtn.title = 'Quitar Filtro';
@@ -833,20 +833,20 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.entries(counts).forEach(([value, count]) => {
             const span = document.createElement('span');
             span.className = 'text-xs px-2 py-1 rounded-full font-bold';
-
+            
             const colorConfig = colorDb ? (colorDb[value] || colorDb['__DEFAULT__']) : null;
-            if (colorConfig) {
+            if(colorConfig) {
                 span.style.backgroundColor = theme === 'dark' ? colorConfig.dark : colorConfig.light;
                 span.style.color = theme === 'dark' ? colorConfig.textDark : colorConfig.textLight;
             } else {
-                span.style.backgroundColor = theme === 'dark' ? '#374151' : '#e5e7eb';
-                span.style.color = theme === 'dark' ? '#d1d5db' : '#374151';
+                 span.style.backgroundColor = theme === 'dark' ? '#374151' : '#e5e7eb';
+                 span.style.color = theme === 'dark' ? '#d1d5db' : '#374151';
             }
             span.textContent = `${value}: ${count}`;
             bar.appendChild(span);
         });
     }
-
+    
     function updateSelectionStatus() {
         elements.deleteRowBtn.disabled = !selectedRowId;
         elements.generatePdfBtn.disabled = !(selectedRowId && selectedTemplateId);
@@ -864,7 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSelectedRowIdentifierDisplay() {
         const display = elements.selectedRowIdentifierDisplay;
         if (!display) return;
-
+        
         const idColumn = appData.selectedRowIdentifierColumn;
 
         if (selectedRowId && idColumn && appData.headers.includes(idColumn)) {
@@ -881,7 +881,7 @@ document.addEventListener('DOMContentLoaded', () => {
             display.style.display = 'none';
         }
     }
-
+    
     function applyTheme(theme) {
         localStorage.setItem('theme', theme);
         elements.htmlTag.className = theme;
@@ -896,7 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderTemplates();
         updateSelectionStatus();
     }
-
+    
     function renderTemplates() {
         const select = elements.templateSelectDropdown;
         select.innerHTML = '';
@@ -956,7 +956,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 const value = input.value;
                 if (value.trim()) {
-                    if (onConfirm) onConfirm(value);
+                    if(onConfirm) onConfirm(value);
                     resolve(value);
                     cleanup();
                 } else {
@@ -978,7 +978,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function openTemplateModal(id = null) {
         let template = { name: '', content: '', manualFields: [], imageFields: [], fontFamily: 'Helvetica' };
         elements.templateModal.classList.add('active');
-
+        
         const modalTitle = document.getElementById('modal-title');
         const templateIdInput = document.getElementById('template-id');
         const templateNameInput = document.getElementById('template-name');
@@ -998,12 +998,12 @@ document.addEventListener('DOMContentLoaded', () => {
         templateFontInput.value = template.fontFamily || 'Helvetica';
         updatePlaceholders(template.manualFields, template.imageFields);
     }
-
+    
     function addTemplatePlaceholder(fieldName, type) {
         const placeholdersContainer = document.getElementById('placeholders-container');
         const existingTextFields = Array.from(placeholdersContainer.querySelectorAll('.manual-field-container')).map(c => c.dataset.placeholder);
         const existingImageFields = Array.from(placeholdersContainer.querySelectorAll('.image-field-container')).map(c => c.dataset.placeholder);
-
+        
         const allExistingFields = appData.headers.concat(existingTextFields, existingImageFields);
 
         if (allExistingFields.includes(fieldName)) {
@@ -1060,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.templateModal.classList.remove('active');
         showToast('Plantilla guardada.', 'success');
     }
-
+    
     function deleteTemplate(id, name) {
         showConfirmModal(`¿Eliminar plantilla "${name}"?`, () => {
             appData.templates = appData.templates.filter(t => t.id !== id);
@@ -1073,7 +1073,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Plantilla eliminada.', 'success');
         });
     }
-
+    
     function updatePlaceholders(manualFields = [], imageFields = []) {
         const placeholdersContainer = document.getElementById('placeholders-container');
         placeholdersContainer.innerHTML = '';
@@ -1084,12 +1084,12 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.onclick = () => insertPlaceholderForTemplate(h);
             placeholdersContainer.appendChild(btn);
         });
-
+        
         (manualFields || []).forEach((field, index) => {
             const container = document.createElement('div');
             container.className = "manual-field-container bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1.5 hover:bg-purple-200 dark:hover:bg-purple-700";
             container.dataset.placeholder = field;
-
+            
             const moveContainer = document.createElement('div');
             moveContainer.className = "flex flex-col";
 
@@ -1118,7 +1118,7 @@ document.addEventListener('DOMContentLoaded', () => {
             textSpan.textContent = field;
             textSpan.className = "px-1 cursor-pointer flex-grow text-center";
             textSpan.onclick = () => insertPlaceholderForTemplate(field);
-
+    
             const removeBtn = document.createElement('button');
             removeBtn.innerHTML = '&times;';
             removeBtn.title = "Eliminar campo";
@@ -1128,7 +1128,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const currentManuals = (manualFields || []).filter(f => f !== field);
                 updatePlaceholders(currentManuals, imageFields);
             };
-
+            
             container.appendChild(moveContainer);
             container.appendChild(textSpan);
             container.appendChild(removeBtn);
@@ -1155,13 +1155,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const currentImageFields = (imageFields || []).filter(f => f !== field);
                 updatePlaceholders(currentManualFields, currentImageFields);
             };
-
+            
             container.appendChild(textSpan);
             container.appendChild(removeBtn);
             placeholdersContainer.appendChild(container);
         });
     }
-
+    
     function insertPlaceholderForTemplate(text, type = 'text') {
         const templateContentInput = document.getElementById('template-content');
         const placeholder = type === 'image' ? `{{IMAGEN:${text}}}` : `{{${text}}}`;
@@ -1177,7 +1177,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
         if (start === end) return;
-
+        
         const selectedText = textarea.value.substring(start, end);
         let replacement;
         let wrapper = '';
@@ -1192,7 +1192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         textarea.setRangeText(replacement, start, end, 'end');
         textarea.focus();
     }
-
+    
     function generatePDF() {
         const template = selectedTemplateId ? appData.templates.find(t => t.id === selectedTemplateId) : null;
         const rowData = selectedRowId ? appData.mainData.find(r => r.id === selectedRowId) : null;
@@ -1213,21 +1213,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function promptForImages(imageFields) {
-        // En la versión nueva (v12), el modal ya es estático y soporta múltiples archivos.
-        // No generamos inputs por cada campo, sino que usamos el área general de drop.
+        const form = elements.imageUploadModal.querySelector('#image-upload-form');
+        form.innerHTML = ''; 
 
-        // Limpiamos la lista de archivos previos si existieran en memoria (por seguridad)
-        if (typeof uploadedFiles !== 'undefined') {
-            uploadedFiles = [];
-            renderFileList();
-        }
+        imageFields.forEach(fieldName => {
+            const fieldId = `image-input-${fieldName.replace(/\s/g, '-')}`;
+            const container = document.createElement('div');
+            container.className = 'p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center';
+            container.innerHTML = `
+                <label for="${fieldId}" class="font-semibold text-gray-700 dark:text-gray-300 cursor-pointer">
+                    ${fieldName}
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Haz clic para seleccionar o arrastra una imagen aquí</p>
+                    <img id="preview-${fieldId}" class="hidden max-h-24 mx-auto mt-2 rounded"/>
+                </label>
+                <input type="file" id="${fieldId}" name="${fieldName}" accept="image/png, image/jpeg" class="hidden">
+            `;
+            
+            const input = container.querySelector('input[type="file"]');
+            const preview = container.querySelector('img');
 
-        // Mostramos el modal
-        if (elements.imageUploadModal) {
-            elements.imageUploadModal.classList.add('active');
-        } else {
-            console.error("No se encontró el modal de carga de imágenes");
-        }
+            const handleFile = (file) => {
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        preview.src = e.target.result;
+                        preview.classList.remove('hidden');
+                        pendingPDFGeneration.uploadedImages[fieldName] = e.target.result; // Guardar Base64
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            input.onchange = (e) => handleFile(e.target.files[0]);
+            container.ondragover = (e) => { e.preventDefault(); container.classList.add('border-sky-500', 'bg-sky-50', 'dark:bg-sky-900/50'); };
+            container.ondragleave = () => container.classList.remove('border-sky-500', 'bg-sky-50', 'dark:bg-sky-900/50');
+            container.ondrop = (e) => { e.preventDefault(); container.classList.remove('border-sky-500', 'bg-sky-50', 'dark:bg-sky-900/50'); handleFile(e.dataTransfer.files[0]); };
+
+            form.appendChild(container);
+        });
+
+        elements.imageUploadModal.classList.add('active');
     }
 
     function promptForManualVars(manualVars) {
@@ -1254,7 +1279,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(manualVarsForm);
             for (let [key, value] of formData.entries()) manualValues[key] = value;
         }
-
+        
         const finalContent = content.replace(/\{\{(IMAGEN:)?(.*?)\}\}/g, (_, isImage, key) => {
             key = key.trim();
             if (isImage) return ''; // Los placeholders de imagen se eliminan del texto, se manejarán por separado
@@ -1265,7 +1290,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return `{{${key}}}`;
         });
-
+        
         elements.manualVarsModal.classList.remove('active');
         elements.imageUploadModal.classList.remove('active');
 
@@ -1293,14 +1318,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (formElement.elements.length > 0) {
             const formData = new FormData(formElement);
             for (let [key, value] of formData.entries()) {
-                manualValues[key] = value;
+                 manualValues[key] = value;
             }
         }
-
+       
         filename = filename.replace(/\{\{(.*?)\}\}/g, (_, key) => {
             key = key.trim();
             if (manualValues.hasOwnProperty(key)) return manualValues[key];
-
+            
             if (rowData.hasOwnProperty(key)) {
                 const value = String(rowData[key] ?? '');
                 return value.trim() ? value : '';
@@ -1312,13 +1337,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         filename = filename.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ');
-
+        
         return `${filename}.pdf`;
     }
 
     // REEMPLAZA TU FUNCIÓN "downloadPDF" CON ESTA VERSIÓN COMPLETA Y CORREGIDA
 
-    // REEMPLAZA TU FUNCIÓN "downloadPDF" CON ESTA VERSIÓN MEJORADA Y OPTIMIZADA
+// REEMPLAZA TU FUNCIÓN "downloadPDF" CON ESTA VERSIÓN MEJORADA Y OPTIMIZADA
     async function downloadPDF() {
         if (!pendingPDFGeneration) return;
         const { template, uploadedImages } = pendingPDFGeneration;
@@ -1351,18 +1376,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const parts = [];
                 // 1. Cortamos por Negrita (**)
                 const boldSegments = text.split('**');
-
+                
                 boldSegments.forEach((segment, boldIndex) => {
                     // Si el índice es impar (1, 3, 5...), es Negrita. Si es par (0, 2...), es normal.
                     const isBold = boldIndex % 2 !== 0;
-
+                    
                     // 2. Cortamos por Cursiva (*) lo que ya tenemos
                     const italicSegments = segment.split('*');
-
+                    
                     italicSegments.forEach((subSegment, italicIndex) => {
                         // Si el índice es impar, es Cursiva.
                         const isItalic = italicIndex % 2 !== 0;
-
+                        
                         if (subSegment.length > 0) {
                             parts.push({
                                 text: subSegment,
@@ -1386,7 +1411,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Escritor inteligente que envuelve palabras
             const writeLineWithMarkdown = (line, x) => {
                 let currentX = x;
-
+                
                 // Obtenemos los segmentos ya procesados (Ej: {text: "hola", bold: true...})
                 const segments = parseStyledText(line);
 
@@ -1415,7 +1440,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         currentX += tokenWidth;
                     }
                 }
-
+                
                 // Reseteamos a normal por seguridad
                 doc.setFont(template.fontFamily || 'Helvetica', 'normal');
             };
@@ -1424,41 +1449,22 @@ document.addEventListener('DOMContentLoaded', () => {
             doc.setFontSize(fontSize);
 
             // Reemplazo de variables (Lógica original mantenida y limpia)
-            // Reemplazo de variables (Lógica original mantenida y limpia)
             const contentWithPlaceholders = pendingPDFGeneration.template.content;
-
-            // Primero, dividimos por imágenes para NO procesar texto dentro de los tags de imágenes
-            const rawParts = contentWithPlaceholders.split(/(\{\{IMAGEN:.*?\}\})/g);
-
-            let finalRenderableContent = "";
-
-            for (const part of rawParts) {
-                if (part.startsWith('{{IMAGEN:')) {
-                    // Si es imagen, la dejamos tal cual
-                    finalRenderableContent += part;
-                } else {
-                    // Si es texto, aplicamos el reemplazo de variables solamente aquí
-                    finalRenderableContent += part.replace(/\{\{(.*?)\}\}/g, (_, key) => {
-                        // DOBLE CHEQUEO: Si por alguna razón el regex capturó algo que parece imagen (aunque no debería gracias al split)
-                        if (key.startsWith('IMAGEN:')) return `{{${key}}}`;
-
-                        const manualValues = {};
-                        const manualVarsForm = document.getElementById('manual-vars-form');
-                        if (manualVarsForm && manualVarsForm.elements.length > 0) {
-                            const formData = new FormData(manualVarsForm);
-                            for (let [k, value] of formData.entries()) manualValues[k] = value;
-                        }
-
-                        key = key.trim();
-                        if (manualValues.hasOwnProperty(key)) return manualValues[key];
-                        if (pendingPDFGeneration.rowData.hasOwnProperty(key)) {
-                            const value = String(pendingPDFGeneration.rowData[key] ?? '');
-                            return value.trim() ? value : '';
-                        }
-                        return ``;
-                    });
-                }
-            }
+            const finalRenderableContent = contentWithPlaceholders.replace(/\{\{(?!IMAGEN:)(.*?)\}\}/g, (_, key) => {
+                 const manualValues = {};
+                 const manualVarsForm = document.getElementById('manual-vars-form');
+                 if (manualVarsForm && manualVarsForm.elements.length > 0) {
+                     const formData = new FormData(manualVarsForm);
+                     for (let [k, value] of formData.entries()) manualValues[k] = value;
+                 }
+                 key = key.trim();
+                 if (manualValues.hasOwnProperty(key)) return manualValues[key];
+                 if (pendingPDFGeneration.rowData.hasOwnProperty(key)) {
+                     const value = String(pendingPDFGeneration.rowData[key] ?? '');
+                     return value.trim() ? value : '';
+                 }
+                 return ``;
+            });
 
             // División por imágenes
             const parts = finalRenderableContent.split(/(\{\{IMAGEN:.*?\}\})/g);
@@ -1489,11 +1495,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     paragraphs.forEach((paragraph, pIndex) => {
                         // Si el párrafo está vacío (salto de línea manual del usuario)
                         if (paragraph.trim() === '') {
-                            if (pIndex < paragraphs.length - 1) { // Solo si no es el último
+                             if (pIndex < paragraphs.length - 1) { // Solo si no es el último
                                 cursorY += lineHeight;
                                 addPageIfNeeded(lineHeight);
-                            }
-                            return;
+                             }
+                             return;
                         }
 
                         addPageIfNeeded(lineHeight);
@@ -1515,7 +1521,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
+    
     function openColumnsModal() {
         const columnsList = document.getElementById('columns-list');
         columnsList.innerHTML = '';
@@ -1527,14 +1533,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const keyColLabel = document.createElement('label');
         keyColLabel.className = 'flex items-center gap-2 text-sm';
         keyColLabel.innerHTML = `<span class="font-semibold text-gray-700 dark:text-gray-300">Calcular "DIAS" a partir de la columna de fecha:</span>`;
-
+        
         const keyColSelect = document.createElement('select');
         keyColSelect.className = 'p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700';
-
+        
         const dateColumns = appData.headers.filter(h => appData.columnFormats[h] === 'date');
-        keyColSelect.innerHTML = `<option value="">-- No calcular --</option>` +
+        keyColSelect.innerHTML = `<option value="">-- No calcular --</option>` + 
             dateColumns.map(h => `<option value="${h}" ${appData.keyColumns.dateForCalculation === h ? 'selected' : ''}>${h}</option>`).join('');
-
+        
         keyColSelect.onchange = (e) => {
             appData.keyColumns.dateForCalculation = e.target.value || null;
             recalculateAllDays();
@@ -1542,7 +1548,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sortAndApplyFilters();
             showToast('Columna de cálculo actualizada.', 'success');
         };
-
+        
         keyColLabel.appendChild(keyColSelect);
         keySettingsContainer.appendChild(keyColLabel);
 
@@ -1554,14 +1560,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const isProtected = appData.columnMetadata[header]?.isProtected || header === appData.keyColumns?.daysDisplay;
 
             item.onclick = (e) => {
-                if (e.target.closest('input, select, button')) return;
+                if(e.target.closest('input, select, button')) return;
                 const currentSelected = columnsList.querySelector('.border-sky-500');
                 if (currentSelected) currentSelected.classList.remove('border-sky-500', 'bg-sky-100', 'dark:bg-sky-800');
                 item.classList.add('border-sky-500', 'bg-sky-100', 'dark:bg-sky-800');
                 selectedColumnNameForDeletion = header;
                 document.getElementById('delete-col-btn').disabled = isProtected;
             };
-
+            
             const moveButtons = document.createElement('div');
             moveButtons.className = 'flex items-center gap-1';
             const upBtn = `<button data-direction="-1" class="p-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600" ${index === 0 ? 'disabled' : ''}>◀</button>`;
@@ -1575,7 +1581,7 @@ document.addEventListener('DOMContentLoaded', () => {
             nameInput.value = header;
             nameInput.className = 'flex-grow font-semibold bg-transparent focus:outline-none focus:ring-0 border-0 p-2 text-gray-800 dark:text-gray-200';
             nameInput.onblur = (e) => handleColumnRename(header, e.target.value);
-            nameInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } };
+            nameInput.onkeydown = (e) => { if(e.key === 'Enter') { e.preventDefault(); e.target.blur(); }};
             item.appendChild(nameInput);
 
             if (isProtected) {
@@ -1584,14 +1590,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 lockIcon.innerHTML = `<svg class="w-5 h-5 text-gray-400 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"></path></svg>`;
                 item.appendChild(lockIcon);
             }
-
+            
             const widthInput = document.createElement('input');
             widthInput.type = 'text';
             widthInput.placeholder = 'auto';
             widthInput.className = 'w-28 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200';
             widthInput.value = appData.columnWidths[header] || '';
             widthInput.onblur = (e) => handleColumnWidthChange(header, e.target.value);
-            widthInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } };
+            widthInput.onkeydown = (e) => { if(e.key === 'Enter') { e.preventDefault(); e.target.blur(); }};
             item.appendChild(widthInput);
 
             const formatSelect = document.createElement('select');
@@ -1600,10 +1606,10 @@ document.addEventListener('DOMContentLoaded', () => {
             formatSelect.value = appData.columnFormats[header] || 'text';
             formatSelect.onchange = () => handleFormatChange(header, formatSelect.value);
             item.appendChild(formatSelect);
-
+            
             columnsList.appendChild(item);
         });
-
+        
         elements.columnsModal.classList.add('active');
     }
 
@@ -1613,10 +1619,10 @@ document.addEventListener('DOMContentLoaded', () => {
             delete appData.columnWidths[header];
         } else {
             if (!/^\d+(\.\d+)?(px|%|em|rem|vw|ch)$/.test(trimmedWidth)) {
-                showToast('Formato de ancho inválido. Use px, %, em, etc.', 'error');
-                const input = document.querySelector(`.column-manager-item[data-header-name="${header}"] input[type="text"]:not([class*="font-semibold"])`);
-                if (input) input.value = appData.columnWidths[header] || '';
-                return;
+               showToast('Formato de ancho inválido. Use px, %, em, etc.', 'error');
+               const input = document.querySelector(`.column-manager-item[data-header-name="${header}"] input[type="text"]:not([class*="font-semibold"])`);
+               if(input) input.value = appData.columnWidths[header] || '';
+               return;
             }
             appData.columnWidths[header] = trimmedWidth;
         }
@@ -1624,7 +1630,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleFormatChange(header, newFormat) {
-        if (newFormat === 'text') {
+        if(newFormat === 'text') {
             delete appData.columnFormats[header];
         } else {
             appData.columnFormats[header] = newFormat;
@@ -1675,7 +1681,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 delete appData.columnMetadata[colToDelete];
                 delete appData.columnFormats[colToDelete];
                 delete appData.columnWidths[colToDelete];
-
+                
                 if (appData.colorCodingColumn === colToDelete) appData.colorCodingColumn = null;
                 if (appData.bulkDeleteColumn === colToDelete) appData.bulkDeleteColumn = null;
                 if (appData.hideSettings.column === colToDelete) appData.hideSettings.column = null;
@@ -1691,7 +1697,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                 });
-
+                
                 if (appData.keyColumns.dateForCalculation === colToDelete) {
                     appData.keyColumns.dateForCalculation = null;
                 }
@@ -1711,40 +1717,40 @@ document.addEventListener('DOMContentLoaded', () => {
         saveData();
         openColumnsModal();
     }
-
+    
     function handleColumnRename(oldHeader, newHeader) {
         newHeader = newHeader.trim().toUpperCase();
         if (!newHeader) { showToast('El nombre no puede estar vacío.', 'warning'); openColumnsModal(); return; }
         if (newHeader !== oldHeader && appData.headers.includes(newHeader)) { showToast('La columna ya existe.', 'warning'); openColumnsModal(); return; }
         const index = appData.headers.indexOf(oldHeader);
         if (index === -1) return;
-
+        
         appData.headers[index] = newHeader;
-        appData.mainData.forEach(row => { if (row.hasOwnProperty(oldHeader)) { row[newHeader] = row[oldHeader]; delete row[oldHeader]; } });
-
+        appData.mainData.forEach(row => { if (row.hasOwnProperty(oldHeader)) { row[newHeader] = row[oldHeader]; delete row[oldHeader]; }});
+        
         if (appData.keyColumns.dateForCalculation === oldHeader) appData.keyColumns.dateForCalculation = newHeader;
         if (appData.keyColumns.daysDisplay === oldHeader) appData.keyColumns.daysDisplay = newHeader;
         if (appData.columnMetadata.hasOwnProperty(oldHeader)) { appData.columnMetadata[newHeader] = appData.columnMetadata[oldHeader]; delete appData.columnMetadata[oldHeader]; }
         if (appData.columnFormats.hasOwnProperty(oldHeader)) { appData.columnFormats[newHeader] = appData.columnFormats[oldHeader]; delete appData.columnFormats[oldHeader]; }
         if (appData.columnWidths.hasOwnProperty(oldHeader)) { appData.columnWidths[newHeader] = appData.columnWidths[oldHeader]; delete appData.columnWidths[oldHeader]; }
         if (appData.sortBy === oldHeader) appData.sortBy = newHeader;
-
+        
         if (appData.colorCodingColumn === oldHeader) appData.colorCodingColumn = newHeader;
         if (appData.bulkDeleteColumn === oldHeader) appData.bulkDeleteColumn = newHeader;
         if (appData.hideSettings.column === oldHeader) appData.hideSettings.column = newHeader;
         if (appData.selectedRowIdentifierColumn === oldHeader) appData.selectedRowIdentifierColumn = newHeader;
 
         const oldListKey = `_list_${oldHeader}`;
-        if (appData.referenceDB.hasOwnProperty(oldListKey)) { appData.referenceDB[`_list_${newHeader}`] = appData.referenceDB[oldListKey]; delete appData.referenceDB[oldListKey]; }
-
+        if(appData.referenceDB.hasOwnProperty(oldListKey)) { appData.referenceDB[`_list_${newHeader}`] = appData.referenceDB[oldListKey]; delete appData.referenceDB[oldListKey]; }
+        
         (appData.lookupRelations || []).forEach(rel => { if (rel.keyColumn === oldHeader) rel.keyColumn = newHeader; if (rel.targetMap) { Object.keys(rel.targetMap).forEach(key => { if (rel.targetMap[key] === oldHeader) rel.targetMap[key] = newHeader; }); } });
-
+        
         saveData();
         selectedColumnNameForDeletion = newHeader;
         openColumnsModal();
         showToast(`Columna renombrada a "${newHeader}".`, "info");
     }
-
+    
     function openDbModal() { renderDbTables(); elements.dbModal.classList.add('active'); }
     function renderDbTables() {
         const dbTablesContainer = document.getElementById('db-tables-container');
@@ -1756,7 +1762,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const headerDiv = document.createElement('div');
             headerDiv.className = 'flex justify-between items-center';
             headerDiv.innerHTML = `<h4 class="font-bold text-lg text-gray-800 dark:text-gray-100">${title}</h4>`;
-
+            
             if (dbKey && dbKey.startsWith('_list_')) {
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'text-xs bg-red-500 text-white font-semibold py-1 px-2 rounded-lg hover:bg-red-600';
@@ -1765,24 +1771,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     const headerName = dbKey.replace('_list_', '');
                     showConfirmModal(`¿Seguro que quieres eliminar la lista "${headerName}"? Se cambiará el formato de la columna a "Texto".`, () => {
                         delete appData.referenceDB[dbKey];
-                        if (appData.columnFormats[headerName]) appData.columnFormats[headerName] = 'text';
-                        if (appData.colorCodingColumn === headerName) appData.colorCodingColumn = null;
-                        if (appData.hideSettings.column === headerName) appData.hideSettings.column = null;
-                        if (appData.bulkDeleteColumn === headerName) appData.bulkDeleteColumn = null;
+                        if(appData.columnFormats[headerName]) appData.columnFormats[headerName] = 'text';
+                        if(appData.colorCodingColumn === headerName) appData.colorCodingColumn = null;
+                        if(appData.hideSettings.column === headerName) appData.hideSettings.column = null;
+                        if(appData.bulkDeleteColumn === headerName) appData.bulkDeleteColumn = null;
                         saveData(); renderDbTables(); showToast(`Lista "${headerName}" eliminada.`, 'success');
                     });
                 };
                 headerDiv.appendChild(deleteBtn);
             }
-
+            
             section.appendChild(headerDiv);
             return section;
         };
-
+        
         const leftCol = document.createElement('div'); leftCol.className = "space-y-6";
         const rightCol = document.createElement('div'); rightCol.className = "space-y-6";
         const listColumns = appData.headers.filter(h => appData.columnFormats[h] === 'list');
-
+        
         // --- SECCIÓN: Identificador de Fila ---
         const identifierSection = createSection('Identificador de Fila Seleccionada');
         const identifierLabel = document.createElement('label');
@@ -1808,7 +1814,7 @@ document.addEventListener('DOMContentLoaded', () => {
         colorCodingLabel.innerHTML = `<span class="font-semibold text-gray-700 dark:text-gray-300">Colorear filas según:</span>`;
         const colorCodingSelect = document.createElement('select');
         colorCodingSelect.className = 'p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 w-full';
-        colorCodingSelect.innerHTML = `<option value="">-- Ninguna --</option>` +
+        colorCodingSelect.innerHTML = `<option value="">-- Ninguna --</option>` + 
             listColumns.map(h => `<option value="${h}" ${appData.colorCodingColumn === h ? 'selected' : ''}>${h}</option>`).join('');
         colorCodingSelect.onchange = (e) => {
             appData.colorCodingColumn = e.target.value || null;
@@ -1866,7 +1872,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusCounts = {};
             const listKey = `_list_${deleteCol}`;
             const statusesForDeletion = appData.referenceDB[listKey] ? Object.keys(appData.referenceDB[listKey]).filter(k => k !== '__DEFAULT__') : [];
-
+            
             statusesForDeletion.forEach(status => statusCounts[status] = 0);
             appData.mainData.forEach(row => { if (row[deleteCol] && statusCounts.hasOwnProperty(row[deleteCol])) statusCounts[row[deleteCol]]++; });
 
@@ -1881,7 +1887,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             bulkDeleteSection.appendChild(listContainer);
-
+        
             const dateConditionContainer = document.createElement('div');
             dateConditionContainer.id = 'bulk-delete-date-condition';
             dateConditionContainer.className = 'mt-4 pt-4 border-t dark:border-gray-600 space-y-2 hidden';
@@ -1894,7 +1900,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const dateColumnSelect = document.createElement('select');
             dateColumnSelect.id = 'bulk-delete-date-column';
             dateColumnSelect.className = 'w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm';
-            if (dateColumns.length > 0) { dateColumnSelect.innerHTML = dateColumns.map(h => `<option value="${h}">${h}</option>`).join(''); }
+            if (dateColumns.length > 0) { dateColumnSelect.innerHTML = dateColumns.map(h => `<option value="${h}">${h}</option>`).join(''); } 
             else { dateColumnSelect.innerHTML = `<option value="">No hay columnas de fecha</option>`; dateColumnSelect.disabled = true; }
             dateFlexContainer.appendChild(dateColumnSelect);
             const dateInput = createDateInputComponent('', null);
@@ -1913,10 +1919,10 @@ document.addEventListener('DOMContentLoaded', () => {
             bulkDeleteButton.disabled = true;
             bulkDeleteSection.appendChild(bulkDeleteButton);
         } else {
-            bulkDeleteSection.innerHTML += `<p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Seleccione una columna para habilitar esta función.</p>`;
+             bulkDeleteSection.innerHTML += `<p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Seleccione una columna para habilitar esta función.</p>`;
         }
         leftCol.appendChild(bulkDeleteSection);
-
+        
         // --- SECCIÓN: Valores Ocultos ---
         const hideSettingsSection = createSection('Valores Ocultos por Defecto (solo listas)');
         const hideSettingsLabel = document.createElement('label');
@@ -1935,27 +1941,27 @@ document.addEventListener('DOMContentLoaded', () => {
         hideSettingsSection.appendChild(hideSettingsLabel);
 
         const hideCol = appData.hideSettings.column;
-        if (hideCol) {
+        if(hideCol) {
             const hiddenStatusesContainer = document.createElement('div'); hiddenStatusesContainer.className = "grid grid-cols-2 md:grid-cols-3 gap-2 mt-2";
             const listKey = `_list_${hideCol}`;
             const valuesToHide = appData.referenceDB[listKey] ? Object.keys(appData.referenceDB[listKey]).filter(k => k !== '__DEFAULT__') : [];
-
+            
             if (valuesToHide.length > 0) {
                 valuesToHide.forEach(value => {
                     const label = document.createElement('label'); label.className = 'flex items-center gap-2 p-2 bg-white dark:bg-gray-700 rounded-md';
-                    const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = value;
+                    const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = value; 
                     checkbox.checked = (appData.hideSettings.hiddenValues || []).includes(value);
                     checkbox.className = 'h-5 w-5 rounded text-sky-600 focus:ring-sky-500';
                     checkbox.onchange = (e) => {
                         if (!appData.hideSettings.hiddenValues) appData.hideSettings.hiddenValues = [];
-                        if (e.target.checked) { if (!appData.hideSettings.hiddenValues.includes(value)) appData.hideSettings.hiddenValues.push(value); }
+                        if (e.target.checked) { if (!appData.hideSettings.hiddenValues.includes(value)) appData.hideSettings.hiddenValues.push(value); } 
                         else { appData.hideSettings.hiddenValues = appData.hideSettings.hiddenValues.filter(s => s !== value); }
                         saveData(); fullReloadUI();
                     };
                     label.appendChild(checkbox); label.append(value); hiddenStatusesContainer.appendChild(label);
                 });
             } else {
-                hiddenStatusesContainer.innerHTML = `<p class="text-sm text-gray-500 dark:text-gray-400 col-span-full">No hay valores definidos para la columna "${hideCol}".</p>`;
+                 hiddenStatusesContainer.innerHTML = `<p class="text-sm text-gray-500 dark:text-gray-400 col-span-full">No hay valores definidos para la columna "${hideCol}".</p>`;
             }
             hideSettingsSection.appendChild(hiddenStatusesContainer);
         } else {
@@ -1974,7 +1980,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="p-1"><input type="checkbox" class="alert-input h-5 w-5 rounded" ${alert.enabled ? 'checked' : ''} data-id="${alert.id}" data-field="enabled"></td>
                 <td class="p-1"><input type="color" class="alert-input-color w-full h-8 p-0 border-0 bg-transparent rounded" value="${alert.color.bg}" data-id="${alert.id}" data-field="bg"></td>
                 <td class="p-1"><input type="color" class="alert-input-color w-full h-8 p-0 border-0 bg-transparent rounded" value="${alert.color.text}" data-id="${alert.id}" data-field="text"></td>
-                <td class="p-1"><select class="alert-input w-full bg-gray-50 dark:bg-gray-700 p-2 border rounded dark:border-gray-600" data-id="${alert.id}" data-field="condition"><option value=">=" ${alert.condition === '>=' ? 'selected' : ''}> >= </option><option value="<=" ${alert.condition === '<=' ? 'selected' : ''}> <= </option><option value="=" ${alert.condition === '=' ? 'selected' : ''}> = </option></select></td>
+                <td class="p-1"><select class="alert-input w-full bg-gray-50 dark:bg-gray-700 p-2 border rounded dark:border-gray-600" data-id="${alert.id}" data-field="condition"><option value=">=" ${alert.condition === '>=' ? 'selected':''}> >= </option><option value="<=" ${alert.condition === '<=' ? 'selected':''}> <= </option><option value="=" ${alert.condition === '=' ? 'selected':''}> = </option></select></td>
                 <td class="p-1"><input type="number" class="alert-input w-full bg-gray-50 dark:bg-gray-700 p-2 border rounded dark:border-gray-600" value="${alert.value}" data-id="${alert.id}" data-field="value"></td>
                 <td class="p-1 text-center"><button class="alert-delete-btn text-red-500 hover:text-red-700 font-bold" data-id="${alert.id}">X</button></td>
             `;
@@ -1985,10 +1991,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const addAlertBtn = document.createElement('button');
         addAlertBtn.className = "mt-2 text-sm text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300";
         addAlertBtn.textContent = '+ Añadir Alerta';
-        addAlertBtn.onclick = () => { if (!appData.visualAlerts) appData.visualAlerts = []; appData.visualAlerts.push({ id: Date.now(), enabled: true, color: { bg: '#fee2e2', text: '#991b1b' }, condition: '>=', value: '15' }); renderDbTables(); saveData(); };
+        addAlertBtn.onclick = () => { if(!appData.visualAlerts) appData.visualAlerts = []; appData.visualAlerts.push({ id: Date.now(), enabled: true, color: { bg: '#fee2e2', text: '#991b1b' }, condition: '>=', value: '15'}); renderDbTables(); saveData(); };
         alertsSection.appendChild(addAlertBtn);
         rightCol.appendChild(alertsSection);
-
+        
         // --- Otras secciones (visualización, pdf, lookups, etc.) ---
         const visualSettingsSection = createSection('Ajustes de Visualización');
         const rowsPerPageLabel = document.createElement('label');
@@ -2022,7 +2028,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pdfFilenameSection.appendChild(filenameInput);
         const filenamePlaceholders = document.createElement('div');
         filenamePlaceholders.className = 'flex flex-wrap gap-2 pt-2';
-        const specialPlaceholders = [{ name: 'fecha_actual', desc: 'Fecha de hoy' }, { name: 'nombre_plantilla', desc: 'Nombre de la plantilla usada' }];
+        const specialPlaceholders = [{name: 'fecha_actual', desc: 'Fecha de hoy'}, {name: 'nombre_plantilla', desc: 'Nombre de la plantilla usada'}];
         [...appData.headers, ...specialPlaceholders.map(p => p.name)].forEach(h => {
             const btn = document.createElement('button');
             btn.className = "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200 text-xs font-mono font-semibold px-2 py-1 rounded-md hover:bg-sky-200 dark:hover:bg-sky-700";
@@ -2067,26 +2073,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const addLookupBtn = document.createElement('button'); addLookupBtn.className = "mt-2 text-sm text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300"; addLookupBtn.textContent = '+ Añadir Búsqueda Automática';
         addLookupBtn.onclick = addLookupRelation; lookupSection.appendChild(addLookupBtn);
         rightCol.appendChild(lookupSection);
-
+        
         Object.entries(appData.referenceDB).forEach(([dbKey, data]) => {
             let config;
-            if (dbKey.startsWith('_list_')) {
+            if (dbKey.startsWith('_list_')) { 
                 const listName = dbKey.replace('_list_', '');
-                config = {
-                    title: `Valores para Lista: ${listName}`,
-                    fields: [{ name: 'key', isKey: true, placeholder: `Valor de ${listName}` }]
+                config = { 
+                    title: `Valores para Lista: ${listName}`, 
+                    fields: [{name: 'key', isKey: true, placeholder: `Valor de ${listName}`}] 
                 };
-                data = Object.keys(data).reduce((acc, key) => { acc[key] = { value: key }; return acc; }, {});
-            }
-            else if (dbKey.startsWith('_lookup_')) {
-                const relation = (appData.lookupRelations || []).find(r => r.sourceDB === dbKey);
-                const fieldData = data['__FIELDS__'] || { 'Dato 1': 'text', 'Dato 2': 'text' };
-                config = {
-                    isLookup: true,
-                    title: `Datos para: ${relation ? relation.name : dbKey}`,
-                    fields: [{ name: 'code', isKey: true, placeholder: 'Código' }, ...Object.keys(fieldData).map(f => ({ name: f, placeholder: f, type: fieldData[f] }))]
-                };
-            }
+                data = Object.keys(data).reduce((acc, key) => { acc[key] = {value: key}; return acc; }, {});
+            } 
+            else if (dbKey.startsWith('_lookup_')) { 
+                const relation = (appData.lookupRelations || []).find(r => r.sourceDB === dbKey); 
+                const fieldData = data['__FIELDS__'] || { 'Dato 1': 'text', 'Dato 2': 'text' }; 
+                config = { 
+                    isLookup: true, 
+                    title: `Datos para: ${relation ? relation.name : dbKey}`, 
+                    fields: [{ name: 'code', isKey: true, placeholder: 'Código' }, ...Object.keys(fieldData).map(f => ({ name: f, placeholder: f, type: fieldData[f] }))] 
+                }; 
+            } 
             else { return; }
 
             const section = createSection(config.title, dbKey);
@@ -2094,7 +2100,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const thead = document.createElement('thead'); thead.className = 'border-b dark:border-gray-700 text-gray-700 dark:text-gray-300';
             let headerCells = config.fields.map(f => {
                 let content = f.placeholder;
-                if (config.isLookup && !f.isKey) {
+                if(config.isLookup && !f.isKey) {
                     content = `<input class="w-full bg-transparent font-bold text-center" value="${f.placeholder}" data-db-key="${dbKey}" data-field-rename="${f.placeholder}">`;
                 }
                 return `<th class="p-2 text-center">${content}</th>`;
@@ -2123,13 +2129,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 tbody.appendChild(tr);
             });
             table.appendChild(tbody); section.appendChild(table);
-            const addBtn = document.createElement('button');
-            addBtn.className = "mt-2 text-sm text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300";
+            const addBtn = document.createElement('button'); 
+            addBtn.className = "mt-2 text-sm text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300"; 
             addBtn.textContent = `+ Añadir a ${config.title}`;
-            addBtn.onclick = () => addDbEntry(dbKey, config);
+            addBtn.onclick = () => addDbEntry(dbKey, config); 
             section.appendChild(addBtn);
-
-            if (dbKey.startsWith('_lookup_')) { rightCol.appendChild(section); }
+            
+            if (dbKey.startsWith('_lookup_')) { rightCol.appendChild(section); } 
             else { leftCol.appendChild(section); }
         });
         dbTablesContainer.appendChild(leftCol); dbTablesContainer.appendChild(rightCol);
@@ -2151,12 +2157,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!appData.referenceDB[dbKey][newKey]) {
                 const newEntry = {};
                 if (dbKey.startsWith('_list_')) {
-                    newEntry.light = '#ffffff';
-                    newEntry.textLight = '#000000';
-                    newEntry.dark = '#1f2937';
-                    newEntry.textDark = '#f3f4f6';
+                     newEntry.light = '#ffffff';
+                     newEntry.textLight = '#000000';
+                     newEntry.dark = '#1f2937';
+                     newEntry.textDark = '#f3f4f6';
                 }
-                (config.fields || []).forEach(field => { if (!field.isKey) { newEntry[field.name] = ''; } });
+                (config.fields || []).forEach(field => { if(!field.isKey) { newEntry[field.name] = ''; } });
                 appData.referenceDB[dbKey][newKey] = newEntry;
                 renderDbTables(); saveData();
             } else {
@@ -2169,10 +2175,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const input = e.target;
         const { dbKey, entryKey, field, isKey: isKeyStr, fieldRename } = input.dataset;
         if (!dbKey) return;
-
+    
         const value = input.value;
         const isKey = isKeyStr === "true";
-
+    
         if (fieldRename) {
             const newFieldName = value.trim();
             if (!newFieldName || newFieldName === fieldRename) return;
@@ -2201,7 +2207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderDbTables();
             return;
         }
-
+    
         if (isKey) {
             if (value && value !== entryKey && !appData.referenceDB[dbKey][value]) {
                 const oldData = { ...appData.referenceDB[dbKey][entryKey] };
@@ -2224,15 +2230,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 appData.referenceDB[dbKey][entryKey][field] = value;
             }
         }
-
+    
         saveData();
         fullReloadUI();
     }
-
+    
     function handleColorDbUpdate(e) {
         const input = e.target;
         const { dbKey, entryKey, field } = input.dataset;
-        if (!dbKey || !entryKey || !field) return;
+        if(!dbKey || !entryKey || !field) return;
 
         if (appData.referenceDB[dbKey] && appData.referenceDB[dbKey][entryKey]) {
             appData.referenceDB[dbKey][entryKey][field] = input.value;
@@ -2244,31 +2250,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleDbDelete(e) {
         const button = e.target.closest('.db-delete-btn, .lookup-delete-btn');
-        if (!button) return;
+        if(!button) return;
         if (button.classList.contains('lookup-delete-btn')) {
             const { id } = button.dataset;
             const relation = (appData.lookupRelations || []).find(r => r.id === id);
             if (relation) {
                 showConfirmModal(`¿Eliminar la búsqueda "${relation.name}"? También se borrará su base de datos de referencia.`, () => {
-                    delete appData.referenceDB[relation.sourceDB];
-                    appData.lookupRelations = appData.lookupRelations.filter(r => r.id !== id);
-                    saveData();
+                    delete appData.referenceDB[relation.sourceDB]; 
+                    appData.lookupRelations = appData.lookupRelations.filter(r => r.id !== id); 
+                    saveData(); 
                     renderDbTables();
                 });
             }
             return;
         }
-        if (button.classList.contains('db-delete-btn') && button.dataset.dbKey) {
-            const { dbKey, entryKey } = button.dataset;
+        if(button.classList.contains('db-delete-btn') && button.dataset.dbKey) {
+            const {dbKey, entryKey} = button.dataset;
             showConfirmModal(`¿Eliminar la entrada "${entryKey}"?`, () => {
-                delete appData.referenceDB[dbKey][entryKey];
-                renderDbTables();
-                saveData();
-                fullReloadUI();
+                 delete appData.referenceDB[dbKey][entryKey];
+                 renderDbTables(); 
+                 saveData(); 
+                 fullReloadUI();
             });
         }
     }
-
+    
     function handleAlertsDbUpdate(e) {
         const input = e.target.closest('.alert-input, .alert-input-color');
         if (!input) return;
@@ -2294,9 +2300,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = e.target.closest('.alert-delete-btn');
         if (button && button.dataset.id) {
             showConfirmModal('¿Eliminar esta alerta visual?', () => {
-                appData.visualAlerts = (appData.visualAlerts || []).filter(a => a.id != button.dataset.id);
-                saveData();
-                renderDbTables();
+                appData.visualAlerts = (appData.visualAlerts || []).filter(a => a.id != button.dataset.id); 
+                saveData(); 
+                renderDbTables(); 
                 sortAndApplyFilters();
             });
         }
@@ -2325,7 +2331,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function importAllData(event) {
-        const file = event.target.files[0];
+        const file = event.target.files[0]; 
         if (!file) return;
 
         elements.loadingOverlay.classList.add('active');
@@ -2336,24 +2342,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const parsed = JSON.parse(e.target.result);
                 if (parsed.headers && parsed.mainData) {
                     showConfirmModal('Esto reemplazará TODOS los datos y ajustes actuales con el contenido del archivo. ¿Continuar?', () => {
-                        appData = parsed;
-                        saveData();
-                        showToast('Copia de seguridad restaurada. La página se recargará.', 'success');
+                        appData = parsed; 
+                        saveData(); 
+                        showToast('Copia de seguridad restaurada. La página se recargará.', 'success'); 
                         setTimeout(() => location.reload(), 1500);
                     }, 'Restaurar Copia de Seguridad');
-                } else {
-                    showToast('Archivo de copia de seguridad no válido.', 'error');
+                } else { 
+                    showToast('Archivo de copia de seguridad no válido.', 'error'); 
                 }
-            } catch (err) {
-                showToast('Error al leer el archivo. No parece ser un backup válido.', 'error');
-                console.error(err);
+            } catch (err) { 
+                showToast('Error al leer el archivo. No parece ser un backup válido.', 'error'); 
+                console.error(err); 
             } finally {
                 elements.loadingOverlay.classList.remove('active');
             }
         };
         reader.onerror = () => {
-            showToast('Error al leer el archivo.', 'error');
-            elements.loadingOverlay.classList.remove('active');
+             showToast('Error al leer el archivo.', 'error'); 
+             elements.loadingOverlay.classList.remove('active');
         };
         reader.readAsText(file);
         event.target.value = '';
@@ -2374,21 +2380,21 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             const filename = `gtn_datos_filtrados_${getFormattedDateForFilename()}.xlsx`;
             const success = exportDataToExcel(filteredData, filename);
-            if (success) showToast('Datos exportados a Excel.', 'success');
+            if(success) showToast('Datos exportados a Excel.', 'success');
             elements.loadingOverlay.classList.remove('active');
         }, 50);
     }
-
+    
     async function handleBulkDelete() {
         const checkedBoxes = document.querySelectorAll('.status-delete-checkbox:checked');
         if (checkedBoxes.length === 0) return;
-
+        
         const deleteCol = appData.bulkDeleteColumn;
         if (!deleteCol) {
             showToast('No se ha seleccionado una columna para la eliminación rápida.', 'error');
             return;
         }
-
+        
         const selectedValues = Array.from(checkedBoxes).map(cb => cb.value);
         const dateColumn = document.getElementById('bulk-delete-date-column').value;
         const dateLimitStr = document.getElementById('bulk-delete-date-input').value;
@@ -2407,7 +2413,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return rowDate < dateLimit;
             });
         }
-
+        
         const rowsToDelete = rowsToDeleteQuery;
         if (rowsToDelete.length === 0) {
             showToast('No se encontraron filas que coincidan con los criterios seleccionados.', 'info');
@@ -2426,21 +2432,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const filename = `gtn_respaldo_eliminados_${getFormattedDateForFilename()}.xlsx`;
             const exported = exportDataToExcel(rowsToDelete, filename);
 
-            if (exported) {
+            if(exported) {
                 showToast('Respaldo en Excel generado.', 'info');
                 setTimeout(() => {
-                    showConfirmModal(`ADVERTENCIA: Está a punto de eliminar permanentemente ${rowsToDelete.length} filas. Esta acción no se puede deshacer.\n\n¿Desea continuar?`, () => {
-                        appData.mainData = rowsToKeep;
+                     showConfirmModal(`ADVERTENCIA: Está a punto de eliminar permanentemente ${rowsToDelete.length} filas. Esta acción no se puede deshacer.\n\n¿Desea continuar?`, () => {
+                        appData.mainData = rowsToKeep; 
                         saveData();
                         showToast(`${rowsToDelete.length} filas eliminadas y archivadas correctamente.`, 'success');
-                        renderDbTables();
+                        renderDbTables(); 
                         fullReloadUI();
                     }, 'Confirmación Final');
                 }, 1000);
             }
         }, 'Respaldar y Continuar');
     }
-
+    
     function changeFontSize(amount) {
         let currentSize = appData.tableFontSize || 14;
         currentSize += amount;
@@ -2459,7 +2465,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         elements.addRowBtn.addEventListener('click', () => addRow());
         elements.deleteRowBtn.addEventListener('click', deleteRow);
-
+        
         elements.increaseFontSizeBtn.addEventListener('click', () => changeFontSize(1));
         elements.decreaseFontSizeBtn.addEventListener('click', () => changeFontSize(-1));
 
@@ -2471,26 +2477,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         elements.manageColsBtn.addEventListener('click', openColumnsModal);
-        elements.columnsModal.addEventListener('click', (e) => {
-            if (e.target.id === 'add-col-btn') addColumn();
-            if (e.target.id === 'delete-col-btn') deleteColumn();
-            if (e.target.id === 'close-columns-btn') { elements.columnsModal.classList.remove('active'); fullReloadUI(); }
+        elements.columnsModal.addEventListener('click', (e) => { 
+            if(e.target.id === 'add-col-btn') addColumn();
+            if(e.target.id === 'delete-col-btn') deleteColumn();
+            if(e.target.id === 'close-columns-btn') { elements.columnsModal.classList.remove('active'); fullReloadUI(); }
         });
 
         elements.exportAllBtn.addEventListener('click', exportAllData);
         elements.exportExcelBtn.addEventListener('click', exportFilteredToExcel);
         elements.importAllBtn.addEventListener('click', () => elements.importAllInput.click());
         elements.importAllInput.addEventListener('change', importAllData);
-
+        
         elements.templateSelectDropdown.addEventListener('change', (e) => { selectedTemplateId = e.target.value || null; updateSelectionStatus(); });
         elements.createTemplateBtn.addEventListener('click', () => openTemplateModal());
         elements.editSelectedTemplateBtn.addEventListener('click', () => selectedTemplateId && openTemplateModal(selectedTemplateId));
-        elements.deleteSelectedTemplateBtn.addEventListener('click', () => { if (selectedTemplateId) { const t = appData.templates.find(x => x.id === selectedTemplateId); if (t) deleteTemplate(t.id, t.name); } });
+        elements.deleteSelectedTemplateBtn.addEventListener('click', () => { if (selectedTemplateId) { const t = appData.templates.find(x => x.id === selectedTemplateId); if(t) deleteTemplate(t.id, t.name); }});
 
         elements.templateModal.addEventListener('click', (e) => {
-            if (e.target.id === 'save-template-btn') saveTemplate();
-            if (e.target.id === 'cancel-template-btn') elements.templateModal.classList.remove('active');
-
+            if(e.target.id === 'save-template-btn') saveTemplate();
+            if(e.target.id === 'cancel-template-btn') elements.templateModal.classList.remove('active');
+            
             const moveBtn = e.target.closest('.move-manual-field-btn');
             if (moveBtn && !moveBtn.disabled) {
                 const fieldName = moveBtn.dataset.field;
@@ -2498,31 +2504,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 moveManualField(fieldName, direction);
             }
 
-            if (e.target.id === 'add-manual-field-btn') {
+            if(e.target.id === 'add-manual-field-btn') {
                 const manualFieldInput = document.getElementById('manual-field-input');
                 const fieldName = manualFieldInput.value.trim();
-                if (!fieldName) return;
+                if(!fieldName) return;
 
                 showConfirmModal(
                     `¿Qué tipo de campo es "${fieldName}"?\n\n- Confirmar: Campo de Texto (se preguntará al escribir).\n- Cancelar: Campo de Imagen (se pedirá un archivo).`,
-                    () => {
+                    () => { 
                         addTemplatePlaceholder(fieldName, 'text');
                         manualFieldInput.value = '';
                     },
                     'Tipo de Campo'
                 );
-
+                
                 const confirmBtn = document.getElementById('confirm-submit-btn');
                 const cancelBtn = document.getElementById('confirm-cancel-btn');
                 confirmBtn.textContent = 'Texto';
                 confirmBtn.className = 'bg-sky-600 text-white font-bold py-2 px-5 rounded-lg';
                 cancelBtn.textContent = 'Imagen';
                 cancelBtn.className = 'bg-purple-600 text-white font-bold py-2 px-5 rounded-lg';
-
+                
                 const originalCancelHandler = () => {
                     elements.confirmModal.classList.remove('active');
                 };
-
+                
                 let customCancelHandler;
                 customCancelHandler = () => {
                     addTemplatePlaceholder(fieldName, 'image');
@@ -2531,17 +2537,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     cancelBtn.removeEventListener('click', customCancelHandler);
                     confirmBtn.removeEventListener('click', confirmBtn.onclick); // Clean up confirm as well
                 };
-
+                
                 // We need to manage listeners carefully
                 const confirmHandler = confirmBtn.onclick; // Get the default handler
                 confirmBtn.onclick = (event) => {
-                    confirmHandler(event); // Run default logic
-                    cancelBtn.removeEventListener('click', customCancelHandler); // Clean up other listener
+                     confirmHandler(event); // Run default logic
+                     cancelBtn.removeEventListener('click', customCancelHandler); // Clean up other listener
                 };
                 cancelBtn.addEventListener('click', customCancelHandler, { once: true }); // Use once to auto-cleanup
             }
-            if (e.target.id === 'format-bold-btn') applyTextFormat('bold');
-            if (e.target.id === 'format-italic-btn') applyTextFormat('italic');
+            if(e.target.id === 'format-bold-btn') applyTextFormat('bold');
+            if(e.target.id === 'format-italic-btn') applyTextFormat('italic');
         });
 
         elements.generatePdfBtn.addEventListener('click', generatePDF);
@@ -2557,7 +2563,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.id === 'download-pdf-btn') downloadPDF();
             if (e.target.id === 'cancel-preview-btn') elements.previewModal.classList.remove('active');
         });
-
+        
         elements.imageUploadModal.addEventListener('click', (e) => {
             if (e.target.id === 'cancel-image-upload-btn') {
                 elements.imageUploadModal.classList.remove('active');
@@ -2587,16 +2593,16 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (e.target.id === 'execute-bulk-delete-btn') handleBulkDelete();
             else handleDbDelete(e);
         });
-        elements.dbModal.addEventListener('focusout', e => {
-            if (e.target.tagName === 'INPUT' && e.target.dataset.dbKey && e.target.dataset.isKey === 'true') handleDbUpdate(e);
-        });
-        elements.dbModal.addEventListener('change', e => {
+         elements.dbModal.addEventListener('focusout', e => { 
+            if(e.target.tagName === 'INPUT' && e.target.dataset.dbKey && e.target.dataset.isKey === 'true') handleDbUpdate(e); 
+         });
+         elements.dbModal.addEventListener('change', e => { 
             if (e.target.classList.contains('alert-input') || e.target.classList.contains('alert-input-color')) {
-                handleAlertsDbUpdate(e);
+                 handleAlertsDbUpdate(e);
             } else if (e.target.classList.contains('db-color-input')) {
-                handleColorDbUpdate(e);
+                 handleColorDbUpdate(e);
             } else if (e.target.dataset.dbKey) {
-                handleDbUpdate(e);
+                 handleDbUpdate(e);
             } else if (e.target.classList.contains('status-delete-checkbox')) {
                 const checkedBoxes = document.querySelectorAll('.status-delete-checkbox:checked');
                 document.getElementById('execute-bulk-delete-btn').disabled = checkedBoxes.length === 0;
@@ -2611,7 +2617,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const newTheme = elements.htmlTag.classList.contains('dark') ? 'light' : 'dark';
             applyTheme(newTheme);
         });
-
+        
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 elements.loadingOverlay.classList.add('active');
@@ -2628,7 +2634,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = new URL(window.location);
             const action = isChecked ? 'activar' : 'desactivar';
             const message = `¿${action.charAt(0).toUpperCase() + action.slice(1)} el modo temporal? La página se recargará y los cambios no se guardarán.`;
-
+            
             showConfirmModal(message, () => {
                 if (isChecked) {
                     url.searchParams.set('temporal', 'true');
@@ -2646,281 +2652,24 @@ document.addEventListener('DOMContentLoaded', () => {
             confirmCancelBtn.addEventListener('click', cancelHandler)
         });
     }
-
+    
     // ### INITIALIZATION ###
     function init() {
         elements.loadingOverlay.classList.add('active');
         populateModals();
         loadData();
         setupEventListeners();
-        recalculateAllDays();
+        recalculateAllDays(); 
         const savedTheme = localStorage.getItem('theme');
         applyTheme(savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
         elements.tableFontColorPicker.value = appData.tableTextColor === 'inherit' ? '#000000' : appData.tableTextColor;
         updateSelectedRowIdentifierDisplay();
         console.log("GTN v10 (Modificado) inicializado.");
-
+        
         setTimeout(() => {
             elements.loadingOverlay.classList.remove('active');
         }, 250);
     }
 
     init();
-
-    // Lógica para Arrastrar y Soltar Fotos
-    const dropZone = document.getElementById('drop-zone');
-    const fileInput = document.getElementById('file-input');
-    const fileListContainer = document.getElementById('file-list-container');
-    let uploadedFiles = []; // Para guardar los archivos temporalmente
-
-    // Al hacer clic en el recuadro, abre el buscador de archivos
-    if (dropZone) {
-        dropZone.onclick = () => fileInput.click();
-
-        // Efecto visual cuando pasás el archivo por encima
-        ['dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (eventName === 'dragover') dropZone.classList.add('bg-sky-100', 'dark:bg-sky-900/40');
-                else dropZone.classList.remove('bg-sky-100', 'dark:bg-sky-900/40');
-            });
-        });
-
-        // Cuando soltás los archivos
-        dropZone.addEventListener('drop', (e) => {
-            handleFiles(e.dataTransfer.files);
-        });
-    }
-
-    // Cuando los elegís manualmente
-    if (fileInput) {
-        fileInput.onchange = (e) => {
-            handleFiles(e.target.files);
-        };
-    }
-
-    function handleFiles(files) {
-        // Convertimos a array de objetos { file: File, caption: string }
-        const newFiles = Array.from(files).map(file => ({ file, caption: '' }));
-        uploadedFiles = [...uploadedFiles, ...newFiles];
-        renderFileList();
-    }
-
-    // Funciones de gestión de imágenes (definidas en el scope para ser usadas por renderFileList)
-    function moveImage(index, direction) {
-        const newIndex = index + direction;
-        if (newIndex >= 0 && newIndex < uploadedFiles.length) {
-            const temp = uploadedFiles[newIndex];
-            uploadedFiles[newIndex] = uploadedFiles[index];
-            uploadedFiles[index] = temp;
-            renderFileList();
-        }
-    }
-
-    function deleteImage(index) {
-        uploadedFiles.splice(index, 1);
-        renderFileList();
-    }
-
-    function updateImageCaption(index, newCaption) {
-        uploadedFiles[index].caption = newCaption;
-    }
-
-    function applyGlobalCaption(caption) {
-        if (!caption) return;
-        uploadedFiles.forEach(file => file.caption = caption);
-        renderFileList();
-    }
-
-    function renderFileList() {
-        fileListContainer.innerHTML = ''; // Limpiamos la lista anterior
-
-        // Si hay archivos, mostramos el control de Título Global
-        if (uploadedFiles.length > 0) {
-            const globalControlDiv = document.createElement('div');
-            globalControlDiv.className = "mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-200 dark:border-indigo-700";
-            globalControlDiv.innerHTML = `
-                <label class="block text-sm font-semibold text-indigo-700 dark:text-indigo-300 mb-1">Título para todas las imágenes:</label>
-                <div class="flex gap-2">
-                    <input type="text" id="global-caption-input" placeholder="Ej: Fachada" class="flex-grow p-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500">
-                    <button id="apply-global-caption-btn" class="bg-indigo-600 text-white text-xs px-3 py-1 rounded hover:bg-indigo-700 transition-colors">Aplicar a Todas</button>
-                </div>
-            `;
-            fileListContainer.appendChild(globalControlDiv);
-
-            // Agregamos el listener manualmente para evitar problemas de scope con innerHTML
-            setTimeout(() => {
-                const btn = document.getElementById('apply-global-caption-btn');
-                const input = document.getElementById('global-caption-input');
-                if (btn && input) {
-                    btn.onclick = () => applyGlobalCaption(input.value);
-                    // Permitir aplicar con Enter
-                    input.onkeydown = (e) => {
-                        if (e.key === 'Enter') applyGlobalCaption(input.value);
-                    };
-                }
-            }, 0);
-        }
-
-        uploadedFiles.forEach((fileObj, index) => {
-            const file = fileObj.file; // Get the actual File object
-            const item = document.createElement('div');
-            item.className = "flex flex-col p-2 mb-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 group";
-
-            // Fila 1: Nombre y controles
-            const headerRow = document.createElement('div');
-            headerRow.className = "flex items-center justify-between mb-2";
-
-            const nameSpan = document.createElement('span');
-            nameSpan.className = "truncate font-medium text-gray-700 dark:text-gray-200 flex-grow mr-2 text-sm";
-            nameSpan.textContent = `${index + 1}. ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = "flex items-center gap-1";
-
-            const upBtn = document.createElement('button');
-            upBtn.innerHTML = '▲';
-            upBtn.className = "p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded text-gray-500";
-            upBtn.title = "Mover arriba";
-            upBtn.onclick = (e) => { e.stopPropagation(); moveImage(index, -1); };
-            if (index === 0) upBtn.classList.add('invisible');
-
-            const downBtn = document.createElement('button');
-            downBtn.innerHTML = '▼';
-            downBtn.className = "p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded text-gray-500";
-            downBtn.title = "Mover abajo";
-            downBtn.onclick = (e) => { e.stopPropagation(); moveImage(index, 1); };
-            if (index === uploadedFiles.length - 1) downBtn.classList.add('invisible');
-
-            const delBtn = document.createElement('button');
-            delBtn.innerHTML = '🗑️';
-            delBtn.className = "p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 ml-1";
-            delBtn.title = "Eliminar imagen";
-            delBtn.onclick = (e) => { e.stopPropagation(); deleteImage(index); };
-
-            actionsDiv.appendChild(upBtn);
-            actionsDiv.appendChild(downBtn);
-            actionsDiv.appendChild(delBtn);
-
-            headerRow.appendChild(nameSpan);
-            headerRow.appendChild(actionsDiv);
-            item.appendChild(headerRow);
-
-            // Fila 2: Input para descripción
-            const captionInput = document.createElement('input');
-            captionInput.type = 'text';
-            captionInput.placeholder = `Descripción para Imagen ${index + 1}`;
-            captionInput.value = fileObj.caption || '';
-            captionInput.className = "w-full p-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:ring-1 focus:ring-sky-500";
-            captionInput.oninput = (e) => updateImageCaption(index, e.target.value);
-
-            item.appendChild(captionInput);
-            fileListContainer.appendChild(item);
-        });
-    }
-
-    // Botón de Cancelar
-    const cancelImageUploadBtn = document.getElementById('cancel-image-upload');
-    if (cancelImageUploadBtn) {
-        cancelImageUploadBtn.onclick = () => {
-            uploadedFiles = [];
-            renderFileList();
-            elements.imageUploadModal.classList.remove('active');
-            pendingPDFGeneration = null; // Limpiamos el proceso pendiente
-            showToast("Generación de PDF cancelada.", "info");
-        };
-    }
-
-    // Botón de continuar
-    const confirmImageUploadBtn = document.getElementById('confirm-image-upload');
-    if (confirmImageUploadBtn) {
-        confirmImageUploadBtn.onclick = async () => {
-            if (uploadedFiles.length === 0) {
-                showToast("Por favor, subí al menos una foto.", "warning");
-                return;
-            }
-
-            const currentFiles = [...uploadedFiles]; // Copia local
-
-            confirmImageUploadBtn.disabled = true;
-            confirmImageUploadBtn.textContent = "Procesando...";
-
-            try {
-                const imagePromises = currentFiles.map(fileObj => {
-                    return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => resolve({
-                            data: e.target.result,
-                            caption: fileObj.caption || `Imagen Adicional ${currentFiles.indexOf(fileObj) + 1}` // Fallback caption if empty
-                        });
-                        reader.readAsDataURL(fileObj.file); // Read the actual File object
-                    });
-                });
-
-                // PendingPDFGeneration.images ahora guardará objetos {data, caption}
-                pendingPDFGeneration.images = await Promise.all(imagePromises);
-
-                elements.imageUploadModal.classList.remove('active');
-                uploadedFiles = [];
-                renderFileList();
-
-                showToast("Imágenes procesadas. Generando...", "success");
-
-                setTimeout(() => {
-                    finishPDFGeneration(pendingPDFGeneration);
-                    confirmImageUploadBtn.disabled = false;
-                    confirmImageUploadBtn.textContent = "Continuar con la Plantilla";
-                }, 300);
-
-            } catch (error) {
-                console.error("Error al procesar imágenes:", error);
-                showToast("Error al procesar las imágenes.", "error");
-                confirmImageUploadBtn.disabled = false;
-                confirmImageUploadBtn.textContent = "Continuar con la Plantilla";
-            }
-        };
-    }
-
-    // Función auxiliar para conectar el nuevo modal con el flujo existente
-    function finishPDFGeneration(pendingData) {
-        if (!pendingData) return;
-
-        // Clonamos la plantilla para no modificar la original en memoria
-        pendingData.template = { ...pendingData.template };
-
-        // Mapear el array de imágenes (pendingData.images) a los campos nombrados (pendingData.uploadedImages)
-        const imageFields = pendingData.template.imageFields || [];
-        pendingData.uploadedImages = pendingData.uploadedImages || {};
-
-        if (pendingData.images && pendingData.images.length > 0) {
-            pendingData.images.forEach((imgObj, index) => {
-                // imgObj viene como { data: base64, caption: string }
-                const base64 = imgObj.data;
-                const caption = imgObj.caption;
-
-                // Caso 1: Hay un placeholder definido para esta posición
-                if (index < imageFields.length) {
-                    const fieldName = imageFields[index];
-                    pendingData.uploadedImages[fieldName] = base64;
-                }
-                // Caso 2: Subió más imágenes que los placeholders definidos -> Las agregamos al final
-                else {
-                    const magicName = `Imagen_Extra_${index + 1}`;
-                    pendingData.uploadedImages[magicName] = base64;
-                    // Usamos la caption personalizada
-                    pendingData.template.content += `\n\n**${caption}**\n{{IMAGEN:${magicName}}}`;
-                }
-            });
-        }
-
-        // Continuar con el flujo original: Variables Manuales -> Previsualización -> Descarga
-        const manualVars = pendingData.template.manualFields || [];
-
-        if (manualVars.length > 0) {
-            promptForManualVars(manualVars);
-        } else {
-            downloadPDF();
-        }
-    }
 });
